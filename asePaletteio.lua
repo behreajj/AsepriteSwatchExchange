@@ -8,6 +8,229 @@ local defaults = {
     colorSpace = "S_RGB"
 }
 
+---@param l number
+---@param a number
+---@param b number
+---@return number
+---@return number
+---@return number
+local function cieLabToCieXyz(l, a, b)
+    local y = (l + 16.0) * 0.008620689655172414
+    local x = a * 0.002 + y
+    local z = y - b * 0.005
+
+    local ye3 = y * y * y
+    local xe3 = x * x * x
+    local ze3 = z * z * z
+
+    y = ye3 > 0.008856 and ye3
+        or (y - 0.13793103448275862) * 0.12841751101180157
+    x = xe3 > 0.008856 and xe3
+        or (x - 0.13793103448275862) * 0.12841751101180157
+    z = ze3 > 0.008856 and ze3
+        or (z - 0.13793103448275862) * 0.12841751101180157
+
+    x = x * 0.95047
+    z = z * 1.08883
+
+    return x, y, z
+end
+
+---@param y number
+---@return number
+local function cieLumToAdobeGray(y)
+    return y ^ 0.4547069271758437
+end
+
+---@param y number
+---@return number
+local function cieLumTosGray(y)
+    return y <= 0.0031308 and y * 12.92
+        or (y ^ 0.41666666666667) * 1.055 - 0.055
+end
+
+---@param x number
+---@param y number
+---@param z number
+---@return number
+---@return number
+---@return number
+local function cieXyzToCieLab(x, y, z)
+    local vx = x * 1.0521110608435826
+    vx = vx > 0.008856
+        and vx ^ 0.3333333333333333
+        or 7.787 * vx + 0.13793103448275862
+
+    local vy = y
+    vy = vy > 0.008856
+        and vy ^ 0.3333333333333333
+        or 7.787 * vy + 0.13793103448275862
+
+    local vz = z * 0.9184170164304805
+    vz = vz > 0.008856
+        and vz ^ 0.3333333333333333
+        or 7.787 * vz + 0.13793103448275862
+
+    local l = 116.0 * vy - 16.0
+    local a = 500.0 * (vx - vy)
+    local b = 200.0 * (vy - vz)
+
+    return l, a, b
+end
+
+---@param x number
+---@param y number
+---@param z number
+---@return number
+---@return number
+---@return number
+local function cieXyzToLinearAdobeRgb(x, y, z)
+    local r01Linear = 2.04137 * x - 0.56495 * y - 0.34469 * z
+    local g01Linear = -0.96927 * x + 1.87601 * y + 0.04156 * z
+    local b01Linear = 0.01345 * x - 0.11839 * y + 1.01541 * z
+    return r01Linear, g01Linear, b01Linear
+end
+
+---@param x number
+---@param y number
+---@param z number
+---@return number
+---@return number
+---@return number
+local function cieXyzToLinearsRgb(x, y, z)
+    local r01Linear = 3.2408123 * x - 1.5373085 * y - 0.49858654 * z
+    local g01Linear = -0.969243 * x + 1.8759663 * y + 0.041555032 * z
+    local b01Linear = 0.0556384 * x - 0.20400746 * y + 1.0571296 * z
+    return r01Linear, g01Linear, b01Linear
+end
+
+---@param c number
+---@param m number
+---@param y number
+---@param k number
+---@return number
+---@return number
+---@return number
+local function cmykToRgb(c, m, y, k)
+    local u = 1.0 - k
+    local r01 = (1.0 - c) * u
+    local g01 = (1.0 - m) * u
+    local b01 = (1.0 - y) * u
+    return r01, g01, b01
+end
+
+---@param r01Gamma number
+---@param g01Gamma number
+---@param b01Gamma number
+---@return number
+---@return number
+---@return number
+local function gammaAdobeRgbToLinearAdobeRgb(r01Gamma, g01Gamma, b01Gamma)
+    local r01Linear = r01Gamma ^ 2.19921875
+    local g01Linear = g01Gamma ^ 2.19921875
+    local b01Linear = b01Gamma ^ 2.19921875
+    return r01Linear, g01Linear, b01Linear
+end
+
+---@param r01Gamma number
+---@param g01Gamma number
+---@param b01Gamma number
+---@return number
+---@return number
+---@return number
+local function gammasRgbToLinearsRgb(r01Gamma, g01Gamma, b01Gamma)
+    local r01Linear = r01Gamma <= 0.04045
+        and r01Gamma * 0.077399380804954
+        or ((r01Gamma + 0.055) * 0.9478672985782) ^ 2.4
+    local g01Linear = g01Gamma <= 0.04045
+        and g01Gamma * 0.077399380804954
+        or ((g01Gamma + 0.055) * 0.9478672985782) ^ 2.4
+    local b01Linear = b01Gamma <= 0.04045
+        and b01Gamma * 0.077399380804954
+        or ((b01Gamma + 0.055) * 0.9478672985782) ^ 2.4
+    return r01Linear, g01Linear, b01Linear
+end
+
+---@param r01Linear number
+---@param g01Linear number
+---@param b01Linear number
+---@return number
+---@return number
+---@return number
+local function linearAdobeRgbToGammaAdobeRgb(r01Linear, g01Linear, b01Linear)
+    local r01Gamma = r01Linear ^ 0.4547069271758437
+    local g01Gamma = g01Linear ^ 0.4547069271758437
+    local b01Gamma = b01Linear ^ 0.4547069271758437
+    return r01Gamma, g01Gamma, b01Gamma
+end
+
+---@param r01Linear number
+---@param g01Linear number
+---@param b01Linear number
+---@return number
+---@return number
+---@return number
+local function linearAdobeRgbToCieXyz(r01Linear, g01Linear, b01Linear)
+    local x = 0.57667 * r01Linear + 0.18555 * g01Linear + 0.18819 * b01Linear
+    local y = 0.29738 * r01Linear + 0.62735 * g01Linear + 0.07527 * b01Linear
+    local z = 0.02703 * r01Linear + 0.07069 * g01Linear + 0.99110 * b01Linear
+    return x, y, z
+end
+
+---@param r01Linear number
+---@param g01Linear number
+---@param b01Linear number
+---@return number
+---@return number
+---@return number
+local function linearsRgbToCieXyz(r01Linear, g01Linear, b01Linear)
+    local x = 0.41241086 * r01Linear + 0.35758457 * g01Linear + 0.1804538 * b01Linear
+    local y = 0.21264935 * r01Linear + 0.71516913 * g01Linear + 0.07218152 * b01Linear
+    local z = 0.019331759 * r01Linear + 0.11919486 * g01Linear + 0.95039004 * b01Linear
+    return x, y, z
+end
+
+---@param r01Linear number
+---@param g01Linear number
+---@param b01Linear number
+---@return number
+---@return number
+---@return number
+local function linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
+    local r01Gamma = r01Linear <= 0.0031308
+        and r01Linear * 12.92
+        or (r01Linear ^ 0.41666666666667) * 1.055 - 0.055
+    local g01Gamma = g01Linear <= 0.0031308
+        and g01Linear * 12.92
+        or (g01Linear ^ 0.41666666666667) * 1.055 - 0.055
+    local b01Gamma = b01Linear <= 0.0031308
+        and b01Linear * 12.92
+        or (b01Linear ^ 0.41666666666667) * 1.055 - 0.055
+    return r01Gamma, g01Gamma, b01Gamma
+end
+
+---@param r01 number
+---@param g01 number
+---@param b01 number
+---@return number
+---@return number
+---@return number
+---@return number
+local function rgbToCmyk(r01, g01, b01)
+    -- TODO: This formula sucks (and its inverse), but is there something better?
+    local c = 0.0
+    local m = 0.0
+    local y = 0.0
+    local k = 1.0 - math.max(r01, g01, b01)
+    if k ~= 1.0 then
+        local scalar = 1.0 / (1.0 - k)
+        c = (1.0 - r01 - k) * scalar
+        m = (1.0 - g01 - k) * scalar
+        y = (1.0 - b01 - k) * scalar
+    end
+    return c, m, y, k
+end
+
 local dlg = Dialog { title = "ASE Palette IO" }
 
 dlg:combobox {
@@ -151,7 +374,6 @@ dlg:button {
         ---@type Color[]
         local aseColors = { Color { r = 0, g = 0, b = 0, a = 0 } }
         local groupNesting = 0
-        local cmykWarning = false
 
         local i = 13
         while i < lenFileData do
@@ -191,6 +413,7 @@ dlg:button {
                 -- local name = tconcat(nameChars, "")
                 -- print("name: " .. name)
 
+
                 local iOffset = lenChars16 * 2 + i
                 local colorFormat = strunpack(">i4", strsub(fileData, iOffset + 8, iOffset + 11))
                 if colorFormat == 0x52474220 then
@@ -201,43 +424,37 @@ dlg:button {
                     local b01 = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
                     -- print(strfmt("%.6f, %.6f, %.6f", r01, g01, b01))
 
-                    local r8 = floor(min(max(r01, 0.0), 1.0) * 255.0 + 0.5)
-                    local g8 = floor(min(max(g01, 0.0), 1.0) * 255.0 + 0.5)
-                    local b8 = floor(min(max(b01, 0.0), 1.0) * 255.0 + 0.5)
-                    -- print(strfmt("r: %03d, g: %03d, b: %03d", r8, g8, b8))
-                    -- print(strfmt("#%06x \n", r8 << 0x10 | g8 << 0x08 | b8))
-
-                    aseColors[#aseColors + 1] = Color { r = r8, g = g8, b = b8, a = 255 }
+                    aseColors[#aseColors + 1] = Color {
+                        r = floor(min(max(r01, 0.0), 1.0) * 255.0 + 0.5),
+                        g = floor(min(max(g01, 0.0), 1.0) * 255.0 + 0.5),
+                        b = floor(min(max(b01, 0.0), 1.0) * 255.0 + 0.5),
+                        a = 255
+                    }
                 elseif colorFormat == 0x434d594b then
                     -- print("CMYK color space")
 
-                    cmykWarning = true
+                    local c = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
+                    local m = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
+                    local y = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
+                    local k = strunpack(">f", strsub(fileData, iOffset + 24, iOffset + 27))
+
+                    local r01, g01, b01 = cmykToRgb(c, m, y, k)
+
+                    aseColors[#aseColors + 1] = Color {
+                        r = floor(min(max(r01, 0.0), 1.0) * 255.0 + 0.5),
+                        g = floor(min(max(g01, 0.0), 1.0) * 255.0 + 0.5),
+                        b = floor(min(max(b01, 0.0), 1.0) * 255.0 + 0.5),
+                        a = 255
+                    }
                 elseif colorFormat == 0x4c616220      -- "Lab "
                     or colorFormat == 0x4c414220 then -- "LAB "
                     -- print("Lab color space")
 
-                    local l01 = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
+                    local l = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
                     local a = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
                     local b = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
-                    local l = l01 * 100.0
 
-                    local vy = (l + 16.0) * 0.008620689655172414
-                    local vx = a * 0.002 + vy
-                    local vz = vy - b * 0.005
-
-                    local vye3 = vy * vy * vy
-                    local vxe3 = vx * vx * vx
-                    local vze3 = vz * vz * vz
-
-                    vy = vye3 > 0.008856 and vye3
-                        or (vy - 0.13793103448275862) * 0.12841751101180157
-                    vx = vxe3 > 0.008856 and vxe3
-                        or (vx - 0.13793103448275862) * 0.12841751101180157
-                    vz = vze3 > 0.008856 and vze3
-                        or (vz - 0.13793103448275862) * 0.12841751101180157
-
-                    vx = vx * 0.95047
-                    vz = vz * 1.08883
+                    local x, y, z = cieLabToCieXyz(l * 100.0, a, b)
 
                     local r01Linear = 0.0
                     local g01Linear = 0.0
@@ -248,34 +465,19 @@ dlg:button {
                     local b01Gamma = 0.0
 
                     if isAdobe then
-                        r01Linear = 2.04137 * vx - 0.56495 * vy - 0.34469 * vz
-                        g01Linear = -0.96927 * vx + 1.87601 * vy + 0.04156 * vz
-                        b01Linear = 0.01345 * vx - 0.11839 * vy + 1.01541 * vz
-
-                        r01Gamma = r01Linear ^ 0.4547069271758437
-                        g01Gamma = g01Linear ^ 0.4547069271758437
-                        b01Gamma = b01Linear ^ 0.4547069271758437
+                        r01Linear, g01Linear, b01Linear = cieXyzToLinearAdobeRgb(x, y, z)
+                        r01Gamma, g01Gamma, b01Gamma = linearAdobeRgbToGammaAdobeRgb(r01Linear, g01Linear, b01Linear)
                     else
-                        r01Linear = 3.2408123 * vx - 1.5373085 * vy - 0.49858654 * vz
-                        g01Linear = -0.969243 * vx + 1.8759663 * vy + 0.041555032 * vz
-                        b01Linear = 0.0556384 * vx - 0.20400746 * vy + 1.0571296 * vz
-
-                        r01Gamma = r01Linear <= 0.0031308
-                            and r01Linear * 12.92
-                            or (r01Linear ^ 0.41666666666667) * 1.055 - 0.055
-                        g01Gamma = g01Linear <= 0.0031308
-                            and g01Linear * 12.92
-                            or (g01Linear ^ 0.41666666666667) * 1.055 - 0.055
-                        b01Gamma = b01Linear <= 0.0031308
-                            and b01Linear * 12.92
-                            or (b01Linear ^ 0.41666666666667) * 1.055 - 0.055
+                        r01Linear, g01Linear, b01Linear = cieXyzToLinearsRgb(x, y, z)
+                        r01Gamma, g01Gamma, b01Gamma = linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
                     end
 
-                    local r8 = floor(min(max(r01Gamma, 0.0), 1.0) * 255.0 + 0.5)
-                    local g8 = floor(min(max(g01Gamma, 0.0), 1.0) * 255.0 + 0.5)
-                    local b8 = floor(min(max(b01Gamma, 0.0), 1.0) * 255.0 + 0.5)
-
-                    aseColors[#aseColors + 1] = Color { r = r8, g = g8, b = b8, a = 255 }
+                    aseColors[#aseColors + 1] = Color {
+                        r = floor(min(max(r01Gamma, 0.0), 1.0) * 255.0 + 0.5),
+                        g = floor(min(max(g01Gamma, 0.0), 1.0) * 255.0 + 0.5),
+                        b = floor(min(max(b01Gamma, 0.0), 1.0) * 255.0 + 0.5),
+                        a = 255
+                    }
                 elseif colorFormat == 0x47726179      -- "Gray"
                     or colorFormat == 0x47524159 then -- "GRAY"
                     -- print("Gray color space")
@@ -290,7 +492,8 @@ dlg:button {
             elseif blockHeader == 0xc001 then
                 -- print("Group start block.")
 
-                -- TODO: You should try to handle these...
+                -- TODO: You should try to handle these... At the very least
+                -- skip extra group data by updating blockLen.
                 groupNesting = groupNesting + 1
             elseif blockHeader == 0xc002 then
                 -- print("Group end block.")
@@ -332,13 +535,6 @@ dlg:button {
         activeSprite:setPalette(palette)
         if oldColorMode == ColorMode.INDEXED then
             app.command.ChangePixelFormat { format = "indexed" }
-        end
-
-        if cmykWarning then
-            app.alert {
-                title = "Error",
-                text = "Colors in CMYK were not loaded."
-            }
         end
     end
 }
@@ -413,11 +609,12 @@ dlg:button {
         local palette = palettes[paletteIdx]
         local lenPalette = #palette
 
-        -- Handle different color formats. (CMYK not supported.)
+        -- Handle different color formats.
         local colorFormat = args.colorFormat
             or defaults.colorFormat --[[@as string]]
         local writeLab = colorFormat == "LAB"
         local writeGry = colorFormat == "GRAY"
+        local writeCmyk = colorFormat == "CMYK"
         local calcLinear = writeLab or writeGry
 
         -- Handle different color spaces.
@@ -448,6 +645,9 @@ dlg:button {
             pkColorFormat = strpack(">i4", 0x47524159) -- "GRAY"
         elseif writeLab then
             pkColorFormat = strpack(">i4", 0x4c414220) -- "LAB "
+        elseif writeCmyk then
+            pkBlockLen = strpack(">i4", 38)
+            pkColorFormat = strpack(">i4", 0x434D594B) -- "CMYK"
         end
 
         ---@type string[]
@@ -469,7 +669,7 @@ dlg:button {
                 local hex24 = r8 << 0x10 | g8 << 0x08 | b8
                 local nameStr8 = strfmt("%06x", hex24)
 
-                -- Write color blcok header.
+                -- Write color block header.
                 binWords[#binWords + 1] = pkEntryHeader
                 binWords[#binWords + 1] = pkBlockLen
                 binWords[#binWords + 1] = pkLenChars16
@@ -498,66 +698,32 @@ dlg:button {
                     local r01Linear = 0.0
                     local g01Linear = 0.0
                     local b01Linear = 0.0
+
+                    local x = 0.0
                     local y = 0.0
+                    local z = 0.0
 
                     if isAdobe then
-                        r01Linear = r01Gamma ^ 2.19921875
-                        g01Linear = g01Gamma ^ 2.19921875
-                        b01Linear = b01Gamma ^ 2.19921875
-                        y = 0.29738 * r01Linear + 0.62735 * g01Linear + 0.07527 * b01Linear
+                        r01Linear, g01Linear, b01Linear = gammaAdobeRgbToLinearAdobeRgb(r01Gamma, g01Gamma, b01Gamma)
+                        x, y, z = linearAdobeRgbToCieXyz(r01Linear, g01Linear, b01Linear)
                     else
-                        r01Linear = r01Gamma <= 0.04045
-                            and r01Gamma * 0.077399380804954
-                            or ((r01Gamma + 0.055) * 0.9478672985782) ^ 2.4
-                        g01Linear = g01Gamma <= 0.04045
-                            and g01Gamma * 0.077399380804954
-                            or ((g01Gamma + 0.055) * 0.9478672985782) ^ 2.4
-                        b01Linear = b01Gamma <= 0.04045
-                            and b01Gamma * 0.077399380804954
-                            or ((b01Gamma + 0.055) * 0.9478672985782) ^ 2.4
-                        y = 0.21264935 * r01Linear + 0.71516913 * g01Linear + 0.07218152 * b01Linear
+                        r01Linear, g01Linear, b01Linear = gammasRgbToLinearsRgb(r01Gamma, g01Gamma, b01Gamma)
+                        x, y, z = linearsRgbToCieXyz(r01Linear, g01Linear, b01Linear)
                     end
 
                     if writeGry then
+                        -- TODO: Custom to gray methods? HSI, HSL, HSV, Luma?
                         local gray = 0.0
                         if isAdobe then
-                            gray = y ^ 0.4547069271758437
+                            gray = cieLumToAdobeGray(y)
                         else
-                            gray = y <= 0.0031308 and y * 12.92
-                                or (y ^ 0.41666666666667) * 1.055 - 0.055
+                            gray = cieLumTosGray(y)
                         end
 
                         pkx = strpack(">f", gray)
                         binWords[#binWords + 1] = pkx -- 24
                     elseif writeLab then
-                        local x = 0.0
-                        local z = 0.0
-                        if isAdobe then
-                            x = 0.57667 * r01Linear + 0.18555 * g01Linear + 0.18819 * b01Linear
-                            z = 0.02703 * r01Linear + 0.07069 * g01Linear + 0.99110 * b01Linear
-                        else
-                            x = 0.41241086 * r01Linear + 0.35758457 * g01Linear + 0.1804538 * b01Linear
-                            z = 0.019331759 * r01Linear + 0.11919486 * g01Linear + 0.95039004 * b01Linear
-                        end
-
-                        local vx = x * 1.0521110608435826
-                        vx = vx > 0.008856
-                            and vx ^ 0.3333333333333333
-                            or 7.787 * vx + 0.13793103448275862
-
-                        local vy = y
-                        vy = vy > 0.008856
-                            and vy ^ 0.3333333333333333
-                            or 7.787 * vy + 0.13793103448275862
-
-                        local vz = z * 0.9184170164304805
-                        vz = vz > 0.008856
-                            and vz ^ 0.3333333333333333
-                            or 7.787 * vz + 0.13793103448275862
-
-                        local l = 116.0 * vy - 16.0
-                        local a = 500.0 * (vx - vy)
-                        local b = 200.0 * (vy - vz)
+                        local l, a, b = cieXyzToCieLab(x, y, z)
 
                         pkx = strpack(">f", l * 0.01)
                         pky = strpack(">f", a)
@@ -567,13 +733,25 @@ dlg:button {
                         binWords[#binWords + 1] = pky -- 28
                         binWords[#binWords + 1] = pkz -- 32
                     end
+                elseif writeCmyk then
+                    local c, m, y, k = rgbToCmyk(r01Gamma, g01Gamma, b01Gamma)
+
+                    pkx = strpack(">f", c)
+                    pky = strpack(">f", m)
+                    pkz = strpack(">f", y)
+                    local pkw = strpack(">f", k)
+
+                    binWords[#binWords + 1] = pkx -- 24
+                    binWords[#binWords + 1] = pky -- 28
+                    binWords[#binWords + 1] = pkz -- 32
+                    binWords[#binWords + 1] = pkw -- 36
                 else
                     binWords[#binWords + 1] = pkx -- 24
                     binWords[#binWords + 1] = pky -- 28
                     binWords[#binWords + 1] = pkz -- 32
                 end
 
-                binWords[#binWords + 1] = pkNormalColorMode -- 34 RGB, 26 Gray
+                binWords[#binWords + 1] = pkNormalColorMode -- 34 RGB, 26 Gray, 38 CMYK
             end
 
             i = i + 1
