@@ -8,13 +8,13 @@
     https://devblog.cyotek.com/post/writing-adobe-swatch-exchange-ase-files-using-csharp
 ]]
 
-local colorFormats = { "GRAY", "RGB", "LAB" }
+local colorFormats = { "CMYK", "GRAY", "HSB", "RGB", "LAB" }
 local colorSpaces = { "ADOBE_RGB", "S_RGB" }
 local grayMethods = { "HSI", "HSL", "HSV", "LUMA" }
-local fileExts = { "ase" }
+local fileExts = { "aco", "ase" }
 
 local defaults = {
-    -- TODO: Support aco format. If so, you'll need HSB->RGB, RGB->HSB.
+    -- TODO: Support aco format.
     colorFormat = "RGB",
     colorSpace = "S_RGB",
     grayMethod = "LUMA"
@@ -187,6 +187,40 @@ local function grayMethodHsv(r01, g01, b01)
     return math.max(r01, g01, b01)
 end
 
+---@param hue number
+---@param sat number
+---@param val number
+---@return number
+---@return number
+---@return number
+local function hsvToRgb(hue, sat, val)
+    local h = (hue % 1.0) * 6.0
+    local s = math.min(math.max(sat, 0.0), 1.0)
+    local v = math.min(math.max(val, 0.0), 1.0)
+
+    local sector = math.floor(h)
+    local secf = sector + 0.0
+    local tint1 = v * (1.0 - s)
+    local tint2 = v * (1.0 - s * (h - secf))
+    local tint3 = v * (1.0 - s * (1.0 + secf - h))
+
+    if sector == 0 then
+        return v, tint3, tint1
+    elseif sector == 1 then
+        return tint2, v, tint1
+    elseif sector == 2 then
+        return tint1, v, tint3
+    elseif sector == 3 then
+        return tint1, tint2, v
+    elseif sector == 4 then
+        return tint3, tint1, v
+    elseif sector == 5 then
+        return v, tint1, tint2
+    end
+
+    return 0.0, 0.0, 0.0
+end
+
 ---@param r01Linear number
 ---@param g01Linear number
 ---@param b01Linear number
@@ -265,6 +299,209 @@ local function rgbToCmyk(r01, g01, b01, gray)
         y = (1.0 - b01 - k) * scalar
     end
     return c, m, y, k
+end
+
+---@param r01 number
+---@param g01 number
+---@param b01 number
+---@return number
+---@return number
+---@return number
+local function rgbToHsv(r01, g01, b01)
+    local gbmx = math.max(g01, b01)
+    local gbmn = math.min(g01, b01)
+    local mx = math.max(r01, gbmx)
+    if mx < 0.00392156862745098 then
+        return 0.0, 0.0, 0.0
+    end
+    local mn = math.min(r01, gbmn)
+    local diff = mx - mn
+    if diff < 0.00392156862745098 then
+        local light = (mx + mn) * 0.5
+        if light > 0.996078431372549 then
+            return 0.0, 0.0, 1.0
+        end
+        return 0.0, 0.0, mx
+    end
+    local hue = 0.0
+    if r01 == mx then
+        hue = (g01 - b01) / diff
+        if g01 < b01 then hue = hue + 6.0 end
+    elseif g01 == mx then
+        hue = 2.0 + (b01 - r01) / diff
+    else
+        hue = 4.0 + (r01 - g01) / diff
+    end
+
+    return hue / 6.0, diff / mx, mx
+end
+
+---@param palette Palette
+---@param colorFormat "CMYK"|"GRAY"|"HSB"|"LAB"|"RGB"
+---@param colorSpace "ADOBE_SRGB"|"S_RGB"
+---@param grayMethod "HSI"|"HSL"|"HSV"|"LUMA"
+---@return string
+local function writeAco(palette, colorFormat, colorSpace, grayMethod)
+    -- Cache commonly used methods.
+    local strbyte = string.byte
+    local strfmt = string.format
+    local strpack = string.pack
+    local tconcat = table.concat
+    local tinsert = table.insert
+    local floor = math.floor
+    local max = math.max
+    local min = math.min
+
+    local lenPalette = #palette
+
+    ---@type string[]
+    local binWords = {}
+    local numColors = 0
+
+    local writeLab = colorFormat == "LAB"
+    local writeGry = colorFormat == "GRAY"
+    local writeCmyk = colorFormat == "CMYK"
+    local writeHsb = colorFormat == "HSB"
+    local calcLinear = writeLab or writeGry or writeCmyk
+
+    local isAdobe = colorSpace == "ADOBE_RGB"
+
+    local isGryHsv = grayMethod == "HSV"
+    local isGryHsi = grayMethod == "HSI"
+    local isGryHsl = grayMethod == "HSL"
+    local isGryLuma = grayMethod == "LUMA"
+    local isGryAdobeY = isAdobe and isGryLuma
+
+    -- Color space varies by user preference.
+    local pkColorFormat = strpack(">I2", 0)
+    if writeGry then
+        pkColorFormat = strpack(">I2", 8)
+    elseif writeLab then
+        pkColorFormat = strpack(">I2", 7)
+    elseif writeCmyk then
+        pkColorFormat = strpack(">I2", 2)
+    elseif writeHsb then
+        pkColorFormat = strpack(">I2", 1)
+    end
+
+    local i = 0
+    while i < lenPalette do
+        local aseColor = palette:getColor(i)
+        if aseColor.alpha > 0 then
+            numColors = numColors + 1
+
+            -- Unpack color.
+            local r8 = aseColor.red
+            local g8 = aseColor.green
+            local b8 = aseColor.blue
+
+            local r01Gamma = r8 / 255.0
+            local g01Gamma = g8 / 255.0
+            local b01Gamma = b8 / 255.0
+
+            local pkw = strpack(">I2", 0)
+            local pkz = pkw
+            local pky = pkw
+            local pkx = pkw
+
+            if calcLinear then
+                local r01Linear = 0.0
+                local g01Linear = 0.0
+                local b01Linear = 0.0
+
+                local xCie = 0.0
+                local yCie = 0.0
+                local zCie = 0.0
+
+                if isAdobe then
+                    r01Linear, g01Linear, b01Linear = gammaAdobeRgbToLinearAdobeRgb(r01Gamma, g01Gamma, b01Gamma)
+                    xCie, yCie, zCie = linearAdobeRgbToCieXyz(r01Linear, g01Linear, b01Linear)
+                else
+                    r01Linear, g01Linear, b01Linear = gammasRgbToLinearsRgb(r01Gamma, g01Gamma, b01Gamma)
+                    xCie, yCie, zCie = linearsRgbToCieXyz(r01Linear, g01Linear, b01Linear)
+                end
+
+                if writeGry then
+                    local gray = 0.0
+                    if isGryHsi then
+                        gray = grayMethodHsi(r01Gamma, g01Gamma, b01Gamma)
+                    elseif isGryHsl then
+                        gray = grayMethodHsl(r01Gamma, g01Gamma, b01Gamma)
+                    elseif isGryHsv then
+                        gray = grayMethodHsv(r01Gamma, g01Gamma, b01Gamma)
+                    elseif isGryAdobeY then
+                        gray = cieLumToAdobeGray(yCie)
+                    else
+                        gray = cieLumTosGray(yCie)
+                    end
+
+                    -- Krita seems to interpret this as linear space??
+                    local gray16 = floor((gray ^ 2.2) * 10000.0 + 0.5)
+                    pkx = strpack(">I2", gray16)
+                elseif writeCmyk then
+                    local gray = grayMethodHsv(r01Gamma, g01Gamma, b01Gamma)
+                    local c, m, y, black = rgbToCmyk(r01Gamma, g01Gamma, b01Gamma, gray)
+
+                    -- Ink is inverted.
+                    local c16 = floor((1.0 - c) * 65535.0 + 0.5)
+                    local m16 = floor((1.0 - m) * 65535.0 + 0.5)
+                    local y16 = floor((1.0 - y) * 65535.0 + 0.5)
+                    local k16 = floor((1.0 - black) * 65535.0 + 0.5)
+
+                    pkx = strpack(">I2", c16)
+                    pky = strpack(">I2", m16)
+                    pkz = strpack(">I2", y16)
+                    pkw = strpack(">I2", k16)
+                elseif writeLab then
+                    local l, a, b = cieXyzToCieLab(xCie, yCie, zCie)
+
+                    -- TODO: This doesn't work.
+
+                    -- Lightness target range is [0, 10000].
+                    -- chroma target range is [-12800, 12700].
+                    local l16 = floor(l * 100.0 + 0.5)
+                    local a16 = floor(min(max(a, -127.5), 127.5)) * 100
+                    local b16 = floor(min(max(b, -127.5), 127.5)) * 100
+
+                    pkx = strpack(">I2", l16)
+                    pky = strpack(">i2", a16)
+                    pkz = strpack(">i2", b16)
+                end
+            elseif writeHsb then
+                local h01, s01, v01 = rgbToHsv(r01Gamma, g01Gamma, b01Gamma)
+
+                local h16 = floor(h01 * 65535.0 + 0.5)
+                local s16 = floor(s01 * 65535.0 + 0.5)
+                local v16 = floor(v01 * 65535.0 + 0.5)
+
+                pkx = strpack(">I2", h16)
+                pky = strpack(">I2", s16)
+                pkz = strpack(">I2", v16)
+            else
+                local r16 = floor(r01Gamma * 65535.0 + 0.5)
+                local g16 = floor(g01Gamma * 65535.0 + 0.5)
+                local b16 = floor(b01Gamma * 65535.0 + 0.5)
+
+                pkx = strpack(">I2", r16)
+                pky = strpack(">I2", g16)
+                pkz = strpack(">I2", b16)
+            end
+
+            binWords[#binWords + 1] = pkColorFormat
+            binWords[#binWords + 1] = pkx
+            binWords[#binWords + 1] = pky
+            binWords[#binWords + 1] = pkz
+            binWords[#binWords + 1] = pkw
+        end
+
+        i = i + 1
+    end
+
+    local pkNumColors = strpack(">I2", numColors)
+    local pkVersion = strpack(">I2", 0x0001)
+    tinsert(binWords, 1, pkNumColors)
+    tinsert(binWords, 1, pkVersion)
+    return tconcat(binWords, "")
 end
 
 ---@param palette Palette
@@ -393,10 +630,10 @@ local function writeAse(palette, colorFormat, colorSpace, grayMethod)
                     binWords[#binWords + 1] = pkx -- 24
                 elseif writeCmyk then
                     local gray = grayMethodHsv(r01Gamma, g01Gamma, b01Gamma)
-                    local c, n, y, black = rgbToCmyk(r01Gamma, g01Gamma, b01Gamma, gray)
+                    local c, m, y, black = rgbToCmyk(r01Gamma, g01Gamma, b01Gamma, gray)
 
                     pkx = strpack(">f", c)
-                    pky = strpack(">f", n)
+                    pky = strpack(">f", m)
                     pkz = strpack(">f", y)
                     local pkw = strpack(">f", black)
 
@@ -665,6 +902,7 @@ dlg:button {
 
         local binFile, err = io.open(importFilepath, "rb")
         if err ~= nil then
+            if binFile then binFile:close() end
             app.alert { title = "Error", text = err }
             return
         end
@@ -700,7 +938,7 @@ dlg:button {
         -- print(strfmt("asefHeader: 0x%08x", asefHeader))
         -- print(isAsef)
 
-        if not isAsef then
+        if (not isAsef) and fileExt == "ase" then
             -- https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#header
             local asepriteHeader = string.unpack("I2", string.sub(fileData, 5, 6))
             -- print(strfmt("asepriteHeader: %04x", asepriteHeader))
@@ -739,7 +977,6 @@ dlg:button {
             or defaults.colorSpace --[[@as string]]
 
         local aseColors = readAse(fileData, colorSpace)
-
         binFile:close()
 
         ---@diagnostic disable-next-line: deprecated
@@ -836,9 +1073,8 @@ dlg:button {
             return
         end
 
-        local fileExt = string.lower(
-            app.fs.fileExtension(exportFilepath))
-        if fileExt ~= "ase" then
+        local fileExt = string.lower(app.fs.fileExtension(exportFilepath))
+        if fileExt ~= "ase" and fileExt ~= "aco" then
             app.alert {
                 title = "Error",
                 text = "File format is not ase."
@@ -848,6 +1084,7 @@ dlg:button {
 
         local binFile, err = io.open(exportFilepath, "wb")
         if err ~= nil then
+            if binFile then binFile:close() end
             app.alert { title = "Error", text = err }
             return
         end
@@ -865,7 +1102,12 @@ dlg:button {
         if paletteIdx > lenPalettes then paletteIdx = 1 end
         local palette = palettes[paletteIdx]
 
-        local binStr = writeAse(palette, colorFormat, colorSpace, grayMethod)
+        local binStr = ""
+        if fileExt == "aco" then
+            binStr = writeAco(palette, colorFormat, colorSpace, grayMethod)
+        else
+            binStr = writeAse(palette, colorFormat, colorSpace, grayMethod)
+        end
         binFile:write(binStr)
         binFile:close()
 
