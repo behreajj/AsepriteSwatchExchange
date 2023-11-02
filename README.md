@@ -1,0 +1,1 @@
+# Aseprite Swatch Exchange
