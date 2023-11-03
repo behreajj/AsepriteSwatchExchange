@@ -8,7 +8,7 @@ This is an Adobe Swatch Exchange (`.ase`) and Adobe Color (`.aco`) import-export
 
 ### ACO Files
 
-`.aco` files support palettes in RGB, HSB, CMYK, CIE LAB and Grayscale formats. Color channels are stored as unsigned 16-bit integers, i.e. in the range `[0, 65535]`.
+`.aco` files support palettes in RGB, HSB, CMYK, CIE LAB and Grayscale formats. Color channels are stored as 16-bit integers, i.e. in the ranges `[0, 65535]` for unsigned `[-32768, 32767]` for signed.
 
 `.aco` files from this script are tested against [Krita](https://krita.org/en/) and [GIMP](https://www.gimp.org/). The grayscale format uses linear space, not gamma, for that reason. Krita's conversion to and from 16-bit integers does not follow the `.aco` specification for the Lab format. GIMP does not seem to support the Lab format currently.
 
@@ -28,9 +28,9 @@ These files may also include groups of colors. Groups are ignored by the importe
 
 ### Debugging
 
-This script was authored without reference to Adobe software (Illustrator, Photoshop, etc.). There are likely bugs as a result. If you would like to help improve the repository, and have access to Adobe products, please consider reaching out with sample files. In particular, `.aco` files in the LAB format require further testing.
+This script was authored without reference to Adobe software (Illustrator, Photoshop, etc.). There are likely bugs as a result. If you would like to help improve the repository, and have access to Adobe products, please consider reaching out with sample files. In particular, `.ase` files with groups and `.aco` files in the LAB format require further testing.
 
-If you would like to debug issues with a file, I recommend doing so in a hex editor. For example, the palette from the screen shot above looks like this as an `.aco`:
+If you would like to debug issues yourself, I recommend doing so in a hex editor. For example, the palette from the screen shot above looks like this as an `.aco`:
 
 ```
 00 01 00 0E 00 00 00 00 00 00 00 00 00 00 00 00
@@ -44,7 +44,7 @@ AE AE 14 14 00 00 00 00 FD FD DD DD 19 19 00 00
 31 31 79 79 00 00 00 00 99 99 1B 1B 58 58 00 00
 ```
 
-The first two characters, `0x00 0x01`, specify version 1. The next two, `0x00 0x0E`, specify the number of colors in the file, 14. A sequence of color blocks follow. The first two characters, `0x00 0x00` specify that RGB is the color format. The next eight characters specify four channel values, with their meaning dependent on the format. Since white and black are the first colors, this is easier to see with the red, `0xDC 0xDC 0x3A 0x3A 0x3A 0x3A 0x00 0x00`. `0xDC 0xDC` is red, and so on.
+The first two characters, `0x00 0x01`, specify version 1. The next two, `0x00 0x0E`, specify the number of colors in the file, 14. A sequence of color blocks follow. The first two characters, `0x00 0x00` specify that RGB is the color format. The next eight characters specify four channel values, with their meaning dependent on the format. Since white and black are the first colors, this is easier to see with the red, `0xDC 0xDC 0x3A 0x3A 0x3A 0x3A 0x00 0x00`.
 
 Below is an `.ase` file containing the same colors, also in RGB format:
 
@@ -87,7 +87,7 @@ F2 F3 00 02 00 01 00 00 00 22 00 07 00 39 00 39
 99 9A 3D D8 D8 D9 3E B0 B0 B1 00 02
 ```
 
-The file begins with the header, "ASEF", `0x41 0x53 0x45 0x46`, followed by the file version, 1.0.0, `0x00 0x01 0x00 0x00`. The number of blocks is described by `0x00 0x00 0x00 0x0E`. A block of color data begins with `0x00 x01`. The number of bytes that follow after in the color block, 34, is signaled by `0x00 0x22`. The length of the swatch's name, 6, with a terminal zero appended, is given by `0x00 0x007`. After the name, `0x52 0x47 0x42 0x20` signals the "RGB " format. The number of color channels to follow depends on the format. This is different from `.aco`, which always had 4 channels, some of which were left at zero. For RGB, there are 3 color channels with 4 bytes per channel. The bytes represent the value as a real number. The color block concludes with the global, spot or normal color mode, `0x00 0x02`.
+The file begins with the header, "ASEF", `0x41 0x53 0x45 0x46`, followed by the file version, 1.0.0, `0x00 0x01 0x00 0x00`. The number of blocks is described by `0x00 0x00 0x00 0x0E`. A block of color data begins with `0x00 x01`. The number of bytes that follow after in the block, 34, is signaled by `0x00 0x22`. The length of the swatch's name, 6, with a terminal zero appended, is given by `0x00 0x007`. After the name, `0x52 0x47 0x42 0x20` signals the "RGB " format. The number of color channels to follow depends on the format. This is different from `.aco`, which always had 4 channels. For RGB, there are 3 color channels with 4 bytes per channel. The bytes represent the value as a real number. The color block concludes with the global, spot or normal color mode, `0x00 0x02`.
 
 For more samples, see the samples folder of this repository.
 
@@ -97,7 +97,7 @@ To download this script, click on the green Code button above, then select Downl
 
 ## Usage
 
-To use this script, open Aseprite. In the menu bar, go to `File > Scripts > Open Scripts Folder`. Move the Lua script into the folder that opens. Return to Aseprite; go to `File > Scripts > Rescan Scripts Folder` (the default hotkey is `F5`). The script should now be listed under `File > Scripts`. Select `netpbmio.lua` to launch the dialog.
+To use this script, open Aseprite. In the menu bar, go to `File > Scripts > Open Scripts Folder`. Move the Lua script into the folder that opens. Return to Aseprite; go to `File > Scripts > Rescan Scripts Folder` (the default hotkey is `F5`). The script should now be listed under `File > Scripts`. Select `aseSwatchIo.lua` to launch the dialog.
 
 If an error message in Aseprite's console appears, check if the script folder is on a file path that includes characters beyond [UTF-8](https://en.wikipedia.org/wiki/UTF-8), such as 'é' (e acute) or 'ö' (o umlaut).
 
@@ -105,14 +105,23 @@ A hot key can be assigned to the script by going to `Edit > Keyboard Shortcuts`.
 
 If no sprite is open when a file is imported, the script will create a new sprite with the palette's swatches on the canvas. If the file is an Aseprite generated `.ase` file, then it will be opened as a sprite, not as a palette. If a sprite is open, then the active sprite's palette is set to the import. Indexed color mode sprites will be converted to RGB before the palette is set, then re-converted to indexed color mode after.
 
+### Color Profiles
+
+Hexadecimal codes, such as `#dc3a3a`, are not universal and transportable color identifiers, contrary to what many beginning pixel artists believe. These codes depend heavily on color profile. Two colors may appear the same, but have different hex codes, or have the same code but appear differently. While newer palette file formats are color managed, older ones, like the `.gpl` and `.pal` formats used by Aseprite, are not.
+
+While Aseprite defaults to [standard RGB](https://en.wikipedia.org/wiki/SRGB), Adobe software commonly uses Adobe RGB. If colors look slightly off when swapping between Aseprite and Adobe software, check the color profile by going to `Sprite > Properties`.
+
+Aseprite allows the color profile to be set to `.icc` files via Lua script, but not through the UI. A dialog script to set the profile can be found at my other repository, [AsepriteAddons](https://github.com/behreajj/asepriteaddons). The Adobe 1998 color profile can be downloaded from [here](https://www.adobe.com/digitalimag/adobergb.html) as an `.icc`.
+
 ## Modification
 
 To modify these scripts, see Aseprite's [API Reference](https://github.com/aseprite/api). There is also a [type definition](https://github.com/behreajj/aseprite-type-definition) for use with VS Code and the [Lua Language Server extension](https://github.com/LuaLS/lua-language-server).
 
+I also recommend familiarity with Lua's `string.pack` and `string.unpack` methods. A breakdown of the formats for these methods can be found in Lua's [documentation](https://www.lua.org/manual/5.4/manual.html#6.4.2).
+
 A useful introduction to the structure of these file formats can be found at "[Mastering Adobe Color File Formats](https://medium.com/swlh/mastering-adobe-color-file-formats-d29e43fde8eb)" by Marc Auberer. Richard Moss has a series of blog posts on [reading](https://devblog.cyotek.com/post/reading-photoshop-color-swatch-aco-files-using-csharp) and [writing](https://devblog.cyotek.com/post/writing-photoshop-color-swatch-aco-files-using-csharp) `.aco` files in C#, followed by [reading](https://devblog.cyotek.com/post/reading-adobe-swatch-exchange-ase-files-using-csharp) and [writing](https://devblog.cyotek.com/post/writing-adobe-swatch-exchange-ase-files-using-csharp) `.ase` files.
 
-In particular, I would recommend familiarity with Lua's `string.pack` and `string.unpack` methods. A breakdown of the formats for these methods can be found in Lua's [documentation](https://www.lua.org/manual/5.4/manual.html#6.4.2).
-
+Formulae for converting between CIE LAB and standard or Adobe RGB can be found at [Easy RGB](https://www.easyrgb.com/en/math.php).
 
 ## Issues
 

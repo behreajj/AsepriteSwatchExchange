@@ -13,6 +13,9 @@
     ASE:
     https://devblog.cyotek.com/post/reading-adobe-swatch-exchange-ase-files-using-csharp
     https://devblog.cyotek.com/post/writing-adobe-swatch-exchange-ase-files-using-csharp
+
+    CIE-sRGB, CIE-AdobeRGB:
+    https://www.easyrgb.com/en/math.php
 ]]
 
 local colorFormats = { "CMYK", "GRAY", "HSB", "RGB", "LAB" }
