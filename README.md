@@ -26,7 +26,7 @@ Swatches include names. This script writes the 6-digit hexadecimal code as name;
 
 These files may also include groups of colors. Groups are ignored by the importer. The distinction between global, spot and normal colors is ignored as well.
 
-### Debugging
+## Debugging
 
 This script was authored without reference to Adobe software (Illustrator, Photoshop, etc.). There are likely bugs as a result. If you would like to help improve the repository, and have access to Adobe products, please consider reaching out with sample files. In particular, `.ase` files with groups and `.aco` files in the LAB format require further testing.
 
