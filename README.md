@@ -26,6 +26,20 @@ Swatches include names. This script writes the 6-digit hexadecimal code as name;
 
 These files may also include groups of colors. Groups are ignored by the importer. The distinction between global, spot and normal colors is ignored as well.
 
+## Download
+
+To download this script, click on the green Code button above, then select Download Zip. You can also click on the `aseSwatch.lua` file. Beware that some browsers will append a `.txt` file format extension to script files on download. Aseprite will not recognize the script until this is removed and the original `.lua` extension is used. There can also be issues with copying and pasting. Be sure to click on the Raw file button; do not copy the formatted code.
+
+## Usage
+
+To use this script, open Aseprite. In the menu bar, go to `File > Scripts > Open Scripts Folder`. Move the Lua script into the folder that opens. Return to Aseprite; go to `File > Scripts > Rescan Scripts Folder` (the default hotkey is `F5`). The script should now be listed under `File > Scripts`. Select `aseSwatchIo.lua` to launch the dialog.
+
+If an error message in Aseprite's console appears, check if the script folder is on a file path that includes characters beyond [UTF-8](https://en.wikipedia.org/wiki/UTF-8), such as 'é' (e acute) or 'ö' (o umlaut).
+
+A hot key can be assigned to the script by going to `Edit > Keyboard Shortcuts`. The search input box in the top left of the shortcuts dialog can be used to locate the script by its file name. The dialog can be closed with `Alt+C`. The import button can be activated with `Alt+I`; export, with `Alt+E`.
+
+If no sprite is open when a file is imported, the script will create a new sprite with the palette's swatches on the canvas. If the file is an Aseprite generated `.ase` file, then it will be opened as a sprite, not as a palette. If a sprite is open, then the active sprite's palette is set to the import. Indexed color mode sprites will be converted to RGB before the palette is set, then re-converted to indexed color mode after.
+
 ## Debugging
 
 This script was authored without reference to Adobe software (Illustrator, Photoshop, etc.). There are likely bugs as a result. If you would like to help improve the repository, and have access to Adobe products, please consider reaching out with sample files. In particular, `.ase` files with groups and `.aco` files in the LAB format require further testing.
@@ -90,20 +104,6 @@ F2 F3 00 02 00 01 00 00 00 22 00 07 00 39 00 39
 The file begins with the header, "ASEF", `0x41 0x53 0x45 0x46`, followed by the file version, 1.0.0, `0x00 0x01 0x00 0x00`. The number of blocks is described by `0x00 0x00 0x00 0x0E`. A block of color data begins with `0x00 x01`. The number of bytes that follow after in the block, 34, is signaled by `0x00 0x22`. The length of the swatch's name, 6, with a terminal zero appended, is given by `0x00 0x007`. After the name, `0x52 0x47 0x42 0x20` signals the "RGB " format. The number of color channels to follow depends on the format. This is different from `.aco`, which always had 4 channels. For RGB, there are 3 color channels with 4 bytes per channel. The bytes represent the value as a real number. The color block concludes with the global, spot or normal color mode, `0x00 0x02`.
 
 For more samples, see the samples folder of this repository.
-
-## Download
-
-To download this script, click on the green Code button above, then select Download Zip. You can also click on the `aseSwatch.lua` file. Beware that some browsers will append a `.txt` file format extension to script files on download. Aseprite will not recognize the script until this is removed and the original `.lua` extension is used. There can also be issues with copying and pasting. Be sure to click on the Raw file button; do not copy the formatted code.
-
-## Usage
-
-To use this script, open Aseprite. In the menu bar, go to `File > Scripts > Open Scripts Folder`. Move the Lua script into the folder that opens. Return to Aseprite; go to `File > Scripts > Rescan Scripts Folder` (the default hotkey is `F5`). The script should now be listed under `File > Scripts`. Select `aseSwatchIo.lua` to launch the dialog.
-
-If an error message in Aseprite's console appears, check if the script folder is on a file path that includes characters beyond [UTF-8](https://en.wikipedia.org/wiki/UTF-8), such as 'é' (e acute) or 'ö' (o umlaut).
-
-A hot key can be assigned to the script by going to `Edit > Keyboard Shortcuts`. The search input box in the top left of the shortcuts dialog can be used to locate the script by its file name. The dialog can be closed with `Alt+C`. The import button can be activated with `Alt+I`; export, with `Alt+E`.
-
-If no sprite is open when a file is imported, the script will create a new sprite with the palette's swatches on the canvas. If the file is an Aseprite generated `.ase` file, then it will be opened as a sprite, not as a palette. If a sprite is open, then the active sprite's palette is set to the import. Indexed color mode sprites will be converted to RGB before the palette is set, then re-converted to indexed color mode after.
 
 ### Color Profiles
 
