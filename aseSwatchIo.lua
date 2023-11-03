@@ -306,6 +306,8 @@ local function readAco(fileData, colorSpace, externalRef)
 
     local isAdobe = colorSpace == "ADOBE_RGB"
     local isKrita = externalRef == "KRITA"
+    local exponent = 1.0
+    if isKrita then exponent = 1.0 / 2.2 end
 
     local fmtGry = 0x0008
     local fmtLab = 0x0007
@@ -345,7 +347,7 @@ local function readAco(fileData, colorSpace, externalRef)
         local b01 = 0.0
 
         if fmt == fmtGry then
-            local gray = (upkw * 0.0001) ^ (1.0 / 2.2)
+            local gray = (upkw * 0.0001) ^ exponent
             r01 = gray
             g01 = gray
             b01 = gray
@@ -693,6 +695,10 @@ local function writeAco(
     local isAdobe = colorSpace == "ADOBE_RGB"
     local isKrita = externalRef == "KRITA"
 
+    -- Krita and GIMP treat gray differently
+    local exponent = 1.0
+    if isKrita then exponent = 2.2 end
+
     local isGryHsv = grayMethod == "HSV"
     local isGryHsi = grayMethod == "HSI"
     local isGryHsl = grayMethod == "HSL"
@@ -764,7 +770,7 @@ local function writeAco(
                     end
 
                     -- Krita treats this as being in linear space.
-                    local gray16 = floor((gray ^ 2.2) * 10000.0 + 0.5)
+                    local gray16 = floor((gray ^ exponent) * 10000.0 + 0.5)
                     pkw = strpack(">I2", gray16)
                 elseif writeCmyk then
                     local gray = grayMethodHsv(r01Gamma, g01Gamma, b01Gamma)
@@ -1032,10 +1038,10 @@ dlg:combobox {
         local state = args.colorFormat --[[@as string]]
         local isGray = state == "GRAY"
         local isLab = state == "LAB"
-        local showColorSpace = isLab or isGray
-        dlg:modify { id = "colorSpace", visible = showColorSpace }
+        local isLabOrGray = isLab or isGray
+        dlg:modify { id = "colorSpace", visible = isLabOrGray }
         dlg:modify { id = "grayMethod", visible = isGray }
-        dlg:modify { id = "externalRef", visible = isLab }
+        dlg:modify { id = "externalRef", visible = isLabOrGray }
     end
 }
 
@@ -1055,7 +1061,7 @@ dlg:newrow { always = false }
 
 dlg:combobox {
     id = "grayMethod",
-    label = "Gray:",
+    label = "Method:",
     option = defaults.grayMethod,
     options = grayMethods,
     focus = false,

@@ -10,7 +10,13 @@ This is an Adobe Swatch Exchange (`.ase`) and Adobe Color (`.aco`) import-export
 
 `.aco` files support palettes in RGB, HSB, CMYK, CIE LAB and Grayscale formats. Color channels are stored as 16-bit integers, i.e. in the ranges `[0, 65535]` for unsigned `[-32768, 32767]` for signed.
 
-`.aco` files from this script are tested against [Krita](https://krita.org/en/) and [GIMP](https://www.gimp.org/). The grayscale format uses linear space, not gamma, for that reason. Krita's conversion to and from 16-bit integers does not follow the `.aco` specification for the Lab format. GIMP does not seem to support the Lab format currently.
+`.aco` files from this script are tested against [Krita](https://krita.org/en/) and [GIMP](https://www.gimp.org/). GIMP does not seem to support the Lab format currently. Krita's conversion to and from 16-bit integers does not follow the `.aco` specification for the Lab format. 
+
+![Krita ACO Lab](kritaLabScreenCap.png)
+
+GIMP and Krita treat gray differently, with Krita seeming to interpret the gray in linear space.
+
+![Gray Compare](compareGrayGimpKrita.png)
 
 There are two versions of `.aco`. Version 2 includes names per each swatch. Since Aseprite does not name palettes swatches, this script reads and writes version 1 only. Version 2 is supposed to follow after 1, with the redundancy adding backwards compatibility. `.aco` files starting with the version 2 header may not be imported properly.
 
