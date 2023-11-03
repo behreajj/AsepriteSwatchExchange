@@ -285,15 +285,11 @@ local function readAco(fileData, colorSpace)
     ---@type Color[]
     local aseColors = { Color { r = 0, g = 0, b = 0, a = 0 } }
 
-    local strchar = string.char
-    local strfmt = string.format
-    local strpack = string.pack
     local strsub = string.sub
     local strunpack = string.unpack
     local floor = math.floor
     local max = math.max
     local min = math.min
-    local tconcat = table.concat
 
     local isAdobe = colorSpace == "ADOBE_RGB"
 
@@ -307,10 +303,16 @@ local function readAco(fileData, colorSpace)
     local initIsV2 = initHead == 0x0002
     local blockLen = 10
 
+    -- print(string.format("%02X", initHead))
+    -- print(initIsV2)
+    -- print(string.format("numColors: %d", numColors))
+
     local i = 0
+    local j = 5
     while i < numColors do
-        local j = 5 + i * blockLen
         i = i + 1
+
+        -- print(string.format("\ni: %d, j: %d", i, j))
 
         local fmt = strunpack(">I2", strsub(fileData, j, j + 1))
         local upkw = strunpack(">I2", strsub(fileData, j + 2, j + 3))
@@ -318,12 +320,11 @@ local function readAco(fileData, colorSpace)
         local upky = strunpack(">I2", strsub(fileData, j + 6, j + 7))
         local upkz = strunpack(">I2", strsub(fileData, j + 8, j + 9))
 
-        -- print(strfmt("i: %02x", i))
-        -- print(strfmt("fmt: %02x", fmt))
-        -- print(strfmt("upw: %02x", upkw))
-        -- print(strfmt("upx: %02x", upkx))
-        -- print(strfmt("upy: %02x", upky))
-        -- print(strfmt("upz: %02x", upkz))
+        -- print(string.format("fmt: %d (0x%02x)", fmt, fmt))
+        -- print(string.format("upw: %d (0x%02x)", upkw, upkw))
+        -- print(string.format("upx: %d (0x%02x)", upkx, upkx))
+        -- print(string.format("upy: %d (0x%02x)", upky, upky))
+        -- print(string.format("upz: %d (0x%02x)", upkz, upkz))
 
         local r01 = 0.0
         local g01 = 0.0
@@ -338,6 +339,8 @@ local function readAco(fileData, colorSpace)
             -- print(strfmt("GRAY: %.3f", gray))
         elseif fmt == fmtLab then
             -- Inverted order due to Krita.
+            -- See for comparison:
+            -- https://github.com/mayth/AcoDraw/blob/master/AcoDraw/ColorConverter.cs
             local l = upky / 655.35
             local a = (upkx - 32768) / 257.0
             local b = (upkw - 32768) / 257.0
@@ -392,18 +395,28 @@ local function readAco(fileData, colorSpace)
         local g8 = floor(min(max(g01, 0.0), 1.0) * 255.0 + 0.5)
         local b8 = floor(min(max(b01, 0.0), 1.0) * 255.0 + 0.5)
 
-        -- print(strfmt(
+        -- print(string.format(
         --     "r8: %d, g8: %d, b8: %d, (#%06x)",
-        --     r8, g8, b8, r8 << 0x10|g8 << 0x08|b8))
+        --     r8, g8, b8, r8 << 0x10 | g8 << 0x08 | b8))
 
         local aseColor = Color { r = r8, g = g8, b = b8, a = 255 }
         aseColors[1 + i] = aseColor
 
         if initIsV2 then
-            -- local spacer = strunpack(">i2", strsub(fileData, j + 10, j + 11))
-            local lenName = strunpack(">i2", strsub(fileData, j + 12, j + 13))
-            -- TODO: Update blockLen
+            -- Slots 10 and 11 are used by a constant 0.
+            -- Length of the name is in characters, which are utf16, plus
+            -- a terminal zero.
+            -- local spacer = strunpack(">I2", strsub(fileData, j + 10, j + 11))
+            local lenName = strunpack(">I2", strsub(fileData, j + 12, j + 13))
+            -- print(string.format("spacer: 0x%02X", spacer))
+            -- print(string.format("lenName: %d (0x%02X)", lenName, lenName))
+            blockLen = 10
+                + 2 -- spacer
+                + 2 -- string length
+                + (lenName + 1) * 2
         end
+
+        j = j + blockLen
     end
 
     return aseColors
@@ -415,10 +428,6 @@ end
 local function readAse(fileData, colorSpace)
     ---@type Color[]
     local aseColors = { Color { r = 0, g = 0, b = 0, a = 0 } }
-
-    local strchar = string.char
-    local strfmt = string.format
-    local tconcat = table.concat
 
     local strsub = string.sub
     local strunpack = string.unpack
