@@ -1121,7 +1121,6 @@ dlg:button {
         ---@diagnostic disable-next-line: deprecated
         local activeSprite = app.activeSprite
         if not activeSprite then
-
             local lenColors <const> = #aseColors
             local rtLen <const> = math.max(16,
                 math.ceil(math.sqrt(math.max(1, lenColors))))
@@ -1149,6 +1148,7 @@ dlg:button {
             end
 
             activeSprite = Sprite(spec)
+            activeSprite.filename = app.fs.fileName(importFilepath)
             activeSprite.cels[1].image = image
         end
 
