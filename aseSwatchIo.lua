@@ -2,6 +2,7 @@
     ACO:
     https://devblog.cyotek.com/post/reading-photoshop-color-swatch-aco-files-using-csharp
     https://devblog.cyotek.com/post/writing-photoshop-color-swatch-aco-files-using-csharp
+    https://gitlab.gnome.org/GNOME/gimp/blob/gimp-2-10/app/core/gimppalette-load.c#L413
 
     ASE:
     https://devblog.cyotek.com/post/reading-adobe-swatch-exchange-ase-files-using-csharp
@@ -12,13 +13,13 @@ local colorFormats = { "CMYK", "GRAY", "HSB", "RGB", "LAB" }
 local colorSpaces = { "ADOBE_RGB", "S_RGB" }
 local grayMethods = { "HSI", "HSL", "HSV", "LUMA" }
 local fileExts = { "aco", "ase" }
-local externalRefs = { "GIMP", "KRITA" }
+local externalRefs = { "KRITA", "OTHER" }
 
 local defaults = {
     colorFormat = "RGB",
     colorSpace = "S_RGB",
     grayMethod = "LUMA",
-    externalRef = "GIMP"
+    externalRef = "KRITA"
 }
 
 ---@param l number
@@ -296,6 +297,7 @@ local function readAco(fileData, colorSpace, externalRef)
 
     local isAdobe = colorSpace == "ADOBE_RGB"
     local isKrita = externalRef == "KRITA"
+    local isGimp = externalRef == "GIMP"
 
     local fmtGry = 0x0008
     local fmtLab = 0x0007
@@ -349,6 +351,11 @@ local function readAco(fileData, colorSpace, externalRef)
                 l = upky / 655.35
                 a = (upkx - 32768) / 257.0
                 b = (upkw - 32768) / 257.0
+            elseif isGimp then
+                -- GIMP might not even support LAB?
+                l = upkw / 100.0
+                a = (upkx - 32768) / 257.0
+                b = (upky - 32768) / 257.0
             else
                 upkx = strunpack(">i2", strsub(fileData, j + 4, j + 5))
                 upky = strunpack(">i2", strsub(fileData, j + 6, j + 7))
@@ -682,6 +689,7 @@ local function writeAco(
 
     local isAdobe = colorSpace == "ADOBE_RGB"
     local isKrita = externalRef == "KRITA"
+    local isGimp = externalRef == "GIMP"
 
     local isGryHsv = grayMethod == "HSV"
     local isGryHsi = grayMethod == "HSI"
@@ -792,6 +800,15 @@ local function writeAco(
                         pky = strpack(">I2", l16)
                         pkx = strpack(">I2", a16)
                         pkw = strpack(">I2", b16)
+                    elseif isGimp then
+                        -- GIMP might not even support LAB?
+                        l16 = floor(l * 100.0 + 0.5)
+                        a16 = 32768 + floor(257.0 * min(max(a, -127.5), 127.5))
+                        b16 = 32768 + floor(257.0 * min(max(b, -127.5), 127.5))
+
+                        pkw = strpack(">I2", l16)
+                        pkx = strpack(">I2", a16)
+                        pky = strpack(">I2", b16)
                     else
                         l16 = floor(l * 100.0 + 0.5)
                         a16 = floor(min(max(a, -127.5), 127.5)) * 100
