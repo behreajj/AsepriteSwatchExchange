@@ -28,7 +28,7 @@ These files may also include groups of colors. Groups are ignored by the importe
 
 ## Download
 
-To download this script, click on the green Code button above, then select Download Zip. You can also click on the `aseSwatch.lua` file. Beware that some browsers will append a `.txt` file format extension to script files on download. Aseprite will not recognize the script until this is removed and the original `.lua` extension is used. There can also be issues with copying and pasting. Be sure to click on the Raw file button; do not copy the formatted code.
+To download this script, click on the green Code button above, then select Download Zip. You can also click on the `aseSwatchIo.lua` file. Beware that some browsers will append a `.txt` file format extension to script files on download. Aseprite will not recognize the script until this is removed and the original `.lua` extension is used. There can also be issues with copying and pasting. Be sure to click on the Raw file button; do not copy the formatted code.
 
 ## Usage
 
