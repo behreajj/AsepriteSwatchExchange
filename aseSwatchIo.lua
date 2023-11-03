@@ -12,11 +12,13 @@ local colorFormats = { "CMYK", "GRAY", "HSB", "RGB", "LAB" }
 local colorSpaces = { "ADOBE_RGB", "S_RGB" }
 local grayMethods = { "HSI", "HSL", "HSV", "LUMA" }
 local fileExts = { "aco", "ase" }
+local externalRefs = { "GIMP", "KRITA" }
 
 local defaults = {
     colorFormat = "RGB",
     colorSpace = "S_RGB",
-    grayMethod = "LUMA"
+    grayMethod = "LUMA",
+    externalRef = "GIMP"
 }
 
 ---@param l number
@@ -280,8 +282,9 @@ end
 
 ---@param fileData string
 ---@param colorSpace "ADOBE_SRGB"|"S_RGB"
+---@param externalRef "GIMP"|"KRITA"
 ---@return Color[]
-local function readAco(fileData, colorSpace)
+local function readAco(fileData, colorSpace, externalRef)
     ---@type Color[]
     local aseColors = { Color { r = 0, g = 0, b = 0, a = 0 } }
 
@@ -292,6 +295,7 @@ local function readAco(fileData, colorSpace)
     local min = math.min
 
     local isAdobe = colorSpace == "ADOBE_RGB"
+    local isKrita = externalRef == "KRITA"
 
     local fmtGry = 0x0008
     local fmtLab = 0x0007
@@ -338,14 +342,21 @@ local function readAco(fileData, colorSpace)
 
             -- print(strfmt("GRAY: %.3f", gray))
         elseif fmt == fmtLab then
-            -- TODO: Looks like you can test this against GIMP imports, too.
-            -- You have to right click on palette side bar for context menu to import.
-            -- Inverted order due to Krita.
-            -- See for comparison:
-            -- https://github.com/mayth/AcoDraw/blob/master/AcoDraw/ColorConverter.cs
-            local l = upky / 655.35
-            local a = (upkx - 32768) / 257.0
-            local b = (upkw - 32768) / 257.0
+            local l = 0.0
+            local a = 0.0
+            local b = 0.0
+            if isKrita then
+                l = upky / 655.35
+                a = (upkx - 32768) / 257.0
+                b = (upkw - 32768) / 257.0
+            else
+                upkx = strunpack(">i2", strsub(fileData, j + 4, j + 5))
+                upky = strunpack(">i2", strsub(fileData, j + 6, j + 7))
+
+                l = upkw / 100.0
+                a = upkx / 100.0
+                b = upky / 100.0
+            end
 
             local x, y, z = cieLabToCieXyz(l, a, b)
 
@@ -639,8 +650,14 @@ end
 ---@param colorFormat "CMYK"|"GRAY"|"HSB"|"LAB"|"RGB"
 ---@param colorSpace "ADOBE_SRGB"|"S_RGB"
 ---@param grayMethod "HSI"|"HSL"|"HSV"|"LUMA"
+---@param externalRef "GIMP"|"KRITA"
 ---@return string
-local function writeAco(palette, colorFormat, colorSpace, grayMethod)
+local function writeAco(
+    palette,
+    colorFormat,
+    colorSpace,
+    grayMethod,
+    externalRef)
     -- Cache commonly used methods.
     local strbyte = string.byte
     local strfmt = string.format
@@ -664,6 +681,7 @@ local function writeAco(palette, colorFormat, colorSpace, grayMethod)
     local calcLinear = writeLab or writeGry or writeCmyk
 
     local isAdobe = colorSpace == "ADOBE_RGB"
+    local isKrita = externalRef == "KRITA"
 
     local isGryHsv = grayMethod == "HSV"
     local isGryHsi = grayMethod == "HSI"
@@ -672,15 +690,16 @@ local function writeAco(palette, colorFormat, colorSpace, grayMethod)
     local isGryAdobeY = isAdobe and isGryLuma
 
     -- Color space varies by user preference.
-    local pkColorFormat = strpack(">I2", 0)
+    local fmtr = ">I2"
+    local pkColorFormat = strpack(fmtr, 0)
     if writeGry then
-        pkColorFormat = strpack(">I2", 8)
+        pkColorFormat = strpack(fmtr, 8)
     elseif writeLab then
-        pkColorFormat = strpack(">I2", 7)
+        pkColorFormat = strpack(fmtr, 7)
     elseif writeCmyk then
-        pkColorFormat = strpack(">I2", 2)
+        pkColorFormat = strpack(fmtr, 2)
     elseif writeHsb then
-        pkColorFormat = strpack(">I2", 1)
+        pkColorFormat = strpack(fmtr, 1)
     end
 
     local i = 0
@@ -754,9 +773,6 @@ local function writeAco(palette, colorFormat, colorSpace, grayMethod)
                 elseif writeLab then
                     local l, a, b = cieXyzToCieLab(xCie, yCie, zCie)
 
-                    -- TODO: Looks like you can test this against GIMP imports, too.
-                    -- You have to right click on palette side bar for context menu to import.
-
                     -- Krita's interpretation of Lab format differs from the
                     -- file format specification.
                     -- https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/#50577411_pgfId-1055819
@@ -764,13 +780,27 @@ local function writeAco(palette, colorFormat, colorSpace, grayMethod)
                     -- a chrominance, and b chrominance . Lightness is a 16-bit
                     -- value from 0...10000. Chrominance components are
                     -- each 16-bit values from -12800...12700."
-                    local l16 = floor(l * 655.35 + 0.5)
-                    local a16 = 32768 + floor(257.0 * min(max(a, -127.5), 127.5))
-                    local b16 = 32768 + floor(257.0 * min(max(b, -127.5), 127.5))
+                    local l16 = 0
+                    local a16 = 0
+                    local b16 = 0
 
-                    pkw = strpack(">I2", b16)
-                    pkx = strpack(">I2", a16)
-                    pky = strpack(">I2", l16)
+                    if isKrita then
+                        l16 = floor(l * 655.35 + 0.5)
+                        a16 = 32768 + floor(257.0 * min(max(a, -127.5), 127.5))
+                        b16 = 32768 + floor(257.0 * min(max(b, -127.5), 127.5))
+
+                        pky = strpack(">I2", l16)
+                        pkx = strpack(">I2", a16)
+                        pkw = strpack(">I2", b16)
+                    else
+                        l16 = floor(l * 100.0 + 0.5)
+                        a16 = floor(min(max(a, -127.5), 127.5)) * 100
+                        b16 = floor(min(max(b, -127.5), 127.5)) * 100
+
+                        pkw = strpack(">I2", l16)
+                        pkx = strpack(">i2", a16)
+                        pky = strpack(">i2", b16)
+                    end
                 end
             elseif writeHsb then
                 local h01, s01, v01 = rgbToHsv(r01Gamma, g01Gamma, b01Gamma)
@@ -986,7 +1016,17 @@ dlg:combobox {
     label = "Format:",
     option = defaults.colorFormat,
     options = colorFormats,
-    focus = false
+    focus = false,
+    onchange = function()
+        local args = dlg.data
+        local state = args.colorFormat --[[@as string]]
+        local isGray = state == "GRAY"
+        local isLab = state == "LAB"
+        local showColorSpace = isLab or isGray
+        dlg:modify { id = "colorSpace", visible = showColorSpace }
+        dlg:modify { id = "grayMethod", visible = isGray }
+        dlg:modify { id = "externalRef", visible = isLab }
+    end
 }
 
 dlg:newrow { always = false }
@@ -996,7 +1036,9 @@ dlg:combobox {
     label = "Space:",
     option = defaults.colorSpace,
     options = colorSpaces,
-    focus = false
+    focus = false,
+    visible = defaults.colorSpace == "GRAY"
+        or defaults.colorSpace == "LAB"
 }
 
 dlg:newrow { always = false }
@@ -1006,7 +1048,19 @@ dlg:combobox {
     label = "Gray:",
     option = defaults.grayMethod,
     options = grayMethods,
-    focus = false
+    focus = false,
+    visible = defaults.colorSpace == "GRAY"
+}
+
+dlg:newrow { always = false }
+
+dlg:combobox {
+    id = "externalRef",
+    label = "External:",
+    option = defaults.externalRef,
+    options = externalRefs,
+    focus = false,
+    visible = defaults.colorSpace == "LAB"
 }
 
 dlg:separator { id = "cancelSep" }
@@ -1121,11 +1175,13 @@ dlg:button {
         -- Handle different color spaces.
         local colorSpace = args.colorSpace
             or defaults.colorSpace --[[@as string]]
+        local externalRef = args.externalRef
+            or defaults.externalRef --[[@as string]]
 
         ---@type Color[]s
         local aseColors = {}
         if fileExt == "aco" then
-            aseColors = readAco(fileData, colorSpace)
+            aseColors = readAco(fileData, colorSpace, externalRef)
         else
             aseColors = readAse(fileData, colorSpace)
         end
@@ -1235,6 +1291,8 @@ dlg:button {
             or defaults.colorSpace --[[@as string]]
         local grayMethod = args.grayMethod
             or defaults.grayMethod --[[@as string]]
+        local externalRef = args.externalRef
+            or defaults.externalRef --[[@as string]]
 
         if (not exportFilepath) or (#exportFilepath < 1) then
             app.alert {
@@ -1275,7 +1333,8 @@ dlg:button {
 
         local binStr = ""
         if fileExt == "aco" then
-            binStr = writeAco(palette, colorFormat, colorSpace, grayMethod)
+            binStr = writeAco(palette, colorFormat, colorSpace, grayMethod,
+                externalRef)
         else
             binStr = writeAse(palette, colorFormat, colorSpace, grayMethod)
         end
