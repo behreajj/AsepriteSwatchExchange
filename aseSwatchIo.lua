@@ -338,6 +338,8 @@ local function readAco(fileData, colorSpace)
 
             -- print(strfmt("GRAY: %.3f", gray))
         elseif fmt == fmtLab then
+            -- TODO: Looks like you can test this against GIMP imports, too.
+            -- You have to right click on palette side bar for context menu to import.
             -- Inverted order due to Krita.
             -- See for comparison:
             -- https://github.com/mayth/AcoDraw/blob/master/AcoDraw/ColorConverter.cs
@@ -746,11 +748,14 @@ local function writeAco(palette, colorFormat, colorSpace, grayMethod)
                     local k16 = floor((1.0 - black) * 65535.0 + 0.5)
 
                     pkw = strpack(">I2", c16)
-                    pkx = strpack(">I2", m16) -- TODO: Is this flipped with y?
+                    pkx = strpack(">I2", m16)
                     pky = strpack(">I2", y16)
                     pkz = strpack(">I2", k16)
                 elseif writeLab then
                     local l, a, b = cieXyzToCieLab(xCie, yCie, zCie)
+
+                    -- TODO: Looks like you can test this against GIMP imports, too.
+                    -- You have to right click on palette side bar for context menu to import.
 
                     -- Krita's interpretation of Lab format differs from the
                     -- file format specification.
@@ -998,7 +1003,7 @@ dlg:newrow { always = false }
 
 dlg:combobox {
     id = "grayMethod",
-    label = "GRAY:",
+    label = "Gray:",
     option = defaults.grayMethod,
     options = grayMethods,
     focus = false
@@ -1075,6 +1080,7 @@ dlg:button {
         -- 4 is a 32-bit integer.
         -- 'f' is a float real number.
         local fileData = binFile:read("a")
+        binFile:close()
         local asefHeader = string.unpack(">i4", string.sub(fileData, 1, 4))
         local isAsef = asefHeader == 0x41534546
         -- print(strfmt("asefHeader: 0x%08x", asefHeader))
@@ -1086,7 +1092,6 @@ dlg:button {
             -- print(strfmt("asepriteHeader: %04x", asepriteHeader))
 
             if asepriteHeader == 0xa5e0 then
-                binFile:close()
                 if #app.sprites <= 0 then
                     Sprite { fromFile = importFilepath }
                 else
@@ -1109,7 +1114,6 @@ dlg:button {
                 return
             end
 
-            binFile:close()
             app.alert { title = "Error", text = "ASEF header not found." }
             return
         end
@@ -1125,7 +1129,6 @@ dlg:button {
         else
             aseColors = readAse(fileData, colorSpace)
         end
-        binFile:close()
 
         ---@diagnostic disable-next-line: deprecated
         local activeSprite = app.activeSprite
