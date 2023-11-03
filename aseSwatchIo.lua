@@ -14,7 +14,6 @@ local grayMethods = { "HSI", "HSL", "HSV", "LUMA" }
 local fileExts = { "aco", "ase" }
 
 local defaults = {
-    -- TODO: Support aco format.
     colorFormat = "RGB",
     colorSpace = "S_RGB",
     grayMethod = "LUMA"
@@ -455,17 +454,20 @@ local function writeAco(palette, colorFormat, colorSpace, grayMethod)
                 elseif writeLab then
                     local l, a, b = cieXyzToCieLab(xCie, yCie, zCie)
 
-                    -- TODO: This doesn't work.
+                    -- Krita's interpretation of Lab format differs from the
+                    -- file format specification.
+                    -- https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/#50577411_pgfId-1055819
+                    -- "The first three values in the color data are lightness,
+                    -- a chrominance, and b chrominance . Lightness is a 16-bit
+                    -- value from 0...10000. Chrominance components are
+                    -- each 16-bit values from -12800...12700."
+                    local l16 = floor(l * 655.35 + 0.5)
+                    local a16 = 32768 + floor(257.0 * min(max(a, -127.5), 127.5))
+                    local b16 = 32768 + floor(257.0 * min(max(b, -127.5), 127.5))
 
-                    -- Lightness target range is [0, 10000].
-                    -- chroma target range is [-12800, 12700].
-                    local l16 = floor(l * 100.0 + 0.5)
-                    local a16 = floor(min(max(a, -127.5), 127.5)) * 100
-                    local b16 = floor(min(max(b, -127.5), 127.5)) * 100
-
-                    pkx = strpack(">I2", l16)
-                    pky = strpack(">i2", a16)
-                    pkz = strpack(">i2", b16)
+                    pkx = strpack(">I2", b16)
+                    pky = strpack(">I2", a16)
+                    pkz = strpack(">I2", l16)
                 end
             elseif writeHsb then
                 local h01, s01, v01 = rgbToHsv(r01Gamma, g01Gamma, b01Gamma)
