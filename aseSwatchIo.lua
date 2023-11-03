@@ -298,17 +298,13 @@ local function readAco(fileData, colorSpace)
     local lenFileData = #fileData
     local isAdobe = colorSpace == "ADOBE_RGB"
 
-    -- local fmtGry = strpack(">I2", 8)
-    -- local fmtLab = strpack(">I2", 7)
-    -- local fmtCmyk = strpack(">I2", 2)
-    -- local fmtHsb = strpack(">I2", 1)
     local fmtGry = 0x0008
     local fmtLab = 0x0007
     local fmtCmyk = 0x0002
     local fmtHsb = 0x0001
 
-    local initHead = strunpack(">i2", strsub(fileData, 1, 2))
-    local numColors = strunpack(">i2", strsub(fileData, 3, 4))
+    local initHead = strunpack(">I2", strsub(fileData, 1, 2))
+    local numColors = strunpack(">I2", strsub(fileData, 3, 4))
     local initIsV2 = initHead == 0x0002
     local blockLen = 10
 
@@ -317,30 +313,37 @@ local function readAco(fileData, colorSpace)
         local j = 5 + i * blockLen
         i = i + 1
 
-        local fmt = strunpack(">i2", strsub(fileData, j, j + 1))
-        local upkw = strunpack(">i2", strsub(fileData, j + 2, j + 3))
-        local upkx = strunpack(">i2", strsub(fileData, j + 4, j + 5))
-        local upky = strunpack(">i2", strsub(fileData, j + 6, j + 7))
-        local upkz = strunpack(">i2", strsub(fileData, j + 8, j + 9))
+        local fmt = strunpack(">I2", strsub(fileData, j, j + 1))
+        local upkw = strunpack(">I2", strsub(fileData, j + 2, j + 3))
+        local upkx = strunpack(">I2", strsub(fileData, j + 4, j + 5))
+        local upky = strunpack(">I2", strsub(fileData, j + 6, j + 7))
+        local upkz = strunpack(">I2", strsub(fileData, j + 8, j + 9))
+
+        -- print(strfmt("i: %02x", i))
+        -- print(strfmt("fmt: %02x", fmt))
+        -- print(strfmt("upw: %02x", upkw))
+        -- print(strfmt("upx: %02x", upkx))
+        -- print(strfmt("upy: %02x", upky))
+        -- print(strfmt("upz: %02x", upkz))
 
         local r01 = 0.0
         local g01 = 0.0
         local b01 = 0.0
 
         if fmt == fmtGry then
-            -- TODO: Improve both the read and write for this by using adobe v. standard
-            -- on read, then only raising to gamma for HSI/HSV/HSL?
             local gray = (upkw * 0.0001) ^ (1.0 / 2.2)
             r01 = gray
             g01 = gray
             b01 = gray
+
+            -- print(strfmt("GRAY: %.3f", gray))
         elseif fmt == fmtLab then
             -- Inverted order due to Krita.
             local l = upky / 655.35
             local a = (upkx - 32768) / 257.0
             local b = (upkw - 32768) / 257.0
 
-            local x, y, z = cieLabToCieXyz(l * 100.0, a, b)
+            local x, y, z = cieLabToCieXyz(l, a, b)
 
             local r01Linear = 0.0
             local g01Linear = 0.0
@@ -353,29 +356,49 @@ local function readAco(fileData, colorSpace)
                 r01Linear, g01Linear, b01Linear = cieXyzToLinearsRgb(x, y, z)
                 r01, g01, b01 = linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
             end
+
+            -- print(strfmt(
+            --     "LAB: l: %.3f, a: %.3f, b: %.3f",
+            --     l, a, b))
         elseif fmt == fmtCmyk then
             local c = 1.0 - upkw / 65535.0
             local m = 1.0 - upkx / 65535.0
             local y = 1.0 - upky / 65535.0
             local k = 1.0 - upkz / 65535.0
             r01, g01, b01 = cmykToRgb(c, m, y, k)
+
+            -- print(strfmt(
+            --     "CMYK: c: %.3f, m: %.3f, y: %.3f, k: %.3f",
+            --     c, m, y, k))
         elseif fmt == fmtHsb then
             local hue = upkw / 65535.0
             local saturation = upkx / 65535.0
             local value = upky / 65535.0
             r01, g01, b01 = hsvToRgb(hue, saturation, value)
+
+            -- print(strfmt(
+            --     "HSB: h: %.3f, s: %.3f, b: %.3f",
+            --     hue, saturation, value))
         else
             r01 = upkw / 65535.0
             g01 = upkx / 65535.0
             b01 = upky / 65535.0
+
+            -- print(strfmt(
+            --     "RGB: r01: %.3f, g01: %.3f, b01: %.3f",
+            --     r01, g01, b01))
         end
 
         local r8 = floor(min(max(r01, 0.0), 1.0) * 255.0 + 0.5)
         local g8 = floor(min(max(g01, 0.0), 1.0) * 255.0 + 0.5)
         local b8 = floor(min(max(b01, 0.0), 1.0) * 255.0 + 0.5)
 
+        -- print(strfmt(
+        --     "r8: %d, g8: %d, b8: %d, (#%06x)",
+        --     r8, g8, b8, r8 << 0x10|g8 << 0x08|b8))
+
         local aseColor = Color { r = r8, g = g8, b = b8, a = 255 }
-        aseColors[i] = aseColor
+        aseColors[1 + i] = aseColor
 
         if initIsV2 then
             -- local spacer = strunpack(">i2", strsub(fileData, j + 10, j + 11))
@@ -1003,10 +1026,10 @@ dlg:button {
         end
 
         local fileExt = string.lower(app.fs.fileExtension(importFilepath))
-        if fileExt ~= "ase" then
+        if fileExt ~= "ase" and fileExt ~= "aco" then
             app.alert {
                 title = "Error",
-                text = "File format is not ase."
+                text = "File format must be ase or aco."
             }
             return
         end
@@ -1090,9 +1113,9 @@ dlg:button {
         ---@type Color[]s
         local aseColors = {}
         if fileExt == "aco" then
-            readAco(fileData, colorSpace)
+            aseColors = readAco(fileData, colorSpace)
         else
-            readAse(fileData, colorSpace)
+            aseColors = readAse(fileData, colorSpace)
         end
         binFile:close()
 
@@ -1194,7 +1217,7 @@ dlg:button {
         if fileExt ~= "ase" and fileExt ~= "aco" then
             app.alert {
                 title = "Error",
-                text = "File format is not ase."
+                text = "File format must be ase or aco."
             }
             return
         end
