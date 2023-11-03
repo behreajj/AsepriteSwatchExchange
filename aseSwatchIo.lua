@@ -278,6 +278,164 @@ local function linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
     return r01Gamma, g01Gamma, b01Gamma
 end
 
+---@param fileData string
+---@param colorSpace "ADOBE_SRGB"|"S_RGB"
+---@return Color[]
+local function readAse(fileData, colorSpace)
+    ---@type Color[]
+    local aseColors = { Color { r = 0, g = 0, b = 0, a = 0 } }
+
+    local strchar = string.char
+    local strfmt = string.format
+    local tconcat = table.concat
+
+    local strsub = string.sub
+    local strunpack = string.unpack
+    local floor = math.floor
+    local max = math.max
+    local min = math.min
+
+    local lenFileData = #fileData
+    local isAdobe = colorSpace == "ADOBE_RGB"
+    local groupNesting = 0
+
+    -- Ignore version block (0010) in chars 5, 6, 7, 8.
+    -- local numColors = strunpack(">i4", strsub(fileData, 9, 12))
+    -- print("numColors: " .. numColors)
+
+    local i = 13
+    while i < lenFileData do
+        local blockLen = 2
+        local blockHeader = strunpack(">i2", strsub(fileData, i, i + 1))
+        local isGroup = blockHeader == 0xc001
+        local isEntry = blockHeader == 0x0001
+        if isGroup or isEntry then
+            --Excludes header start.
+            blockLen = strunpack(">i4", strsub(fileData, i + 2, i + 5))
+            -- print("blockLen: " .. blockLen)
+
+            -- The length is the number of chars in a string. The string
+            -- is encoded in UTF-16, so it'd be 2x number of binary chars.
+            -- A terminal zero is included in the length.
+            --
+            -- Ase files downloaded from Lospec use their lower-case 6 digit
+            -- hexadecimal value as a name, e.g., "aabbcc".
+            local lenChars16 = strunpack(">i2", strsub(fileData, i + 6, i + 7))
+            -- print("lenChars16: " .. lenChars16)
+
+            -- local nameChars = {}
+            -- local j = 0
+            -- while j < lenChars16 do
+            --     local k = i + 8 + j * 2
+            --     local bin16 = strsub(fileData, k, k + 1)
+            --     local int16 = strunpack(">i2", bin16)
+            --     local char8 = ""
+            --     if int16 then char8 = strchar(int16) end
+            --     j = j + 1
+            --     nameChars[j] = char8
+
+            -- print("bin16: " .. bin16)
+            -- print("int16: " .. int16)
+            -- print(strfmt("char16: \"%s\"", char8))
+            -- end
+            -- local name = tconcat(nameChars, "")
+            -- print("name: " .. name)
+
+            if isEntry then
+                -- print("Color block.")
+
+                local iOffset = lenChars16 * 2 + i
+                local colorFormat = strunpack(">i4", strsub(fileData, iOffset + 8, iOffset + 11))
+                if colorFormat == 0x52474220 then
+                    -- print("RGB color space.")
+
+                    local r01 = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
+                    local g01 = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
+                    local b01 = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
+                    -- print(strfmt("%.6f, %.6f, %.6f", r01, g01, b01))
+
+                    aseColors[#aseColors + 1] = Color {
+                        r = floor(min(max(r01, 0.0), 1.0) * 255.0 + 0.5),
+                        g = floor(min(max(g01, 0.0), 1.0) * 255.0 + 0.5),
+                        b = floor(min(max(b01, 0.0), 1.0) * 255.0 + 0.5),
+                        a = 255
+                    }
+                elseif colorFormat == 0x434d594b then
+                    -- print("CMYK color space")
+
+                    local c = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
+                    local m = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
+                    local y = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
+                    local k = strunpack(">f", strsub(fileData, iOffset + 24, iOffset + 27))
+
+                    local r01, g01, b01 = cmykToRgb(c, m, y, k)
+
+                    aseColors[#aseColors + 1] = Color {
+                        r = floor(min(max(r01, 0.0), 1.0) * 255.0 + 0.5),
+                        g = floor(min(max(g01, 0.0), 1.0) * 255.0 + 0.5),
+                        b = floor(min(max(b01, 0.0), 1.0) * 255.0 + 0.5),
+                        a = 255
+                    }
+                elseif colorFormat == 0x4c616220      -- "Lab "
+                    or colorFormat == 0x4c414220 then -- "LAB "
+                    -- print("Lab color space")
+
+                    local l = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
+                    local a = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
+                    local b = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
+
+                    local x, y, z = cieLabToCieXyz(l * 100.0, a, b)
+
+                    local r01Linear = 0.0
+                    local g01Linear = 0.0
+                    local b01Linear = 0.0
+
+                    local r01Gamma = 0.0
+                    local g01Gamma = 0.0
+                    local b01Gamma = 0.0
+
+                    if isAdobe then
+                        r01Linear, g01Linear, b01Linear = cieXyzToLinearAdobeRgb(x, y, z)
+                        r01Gamma, g01Gamma, b01Gamma = linearAdobeRgbToGammaAdobeRgb(r01Linear, g01Linear, b01Linear)
+                    else
+                        r01Linear, g01Linear, b01Linear = cieXyzToLinearsRgb(x, y, z)
+                        r01Gamma, g01Gamma, b01Gamma = linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
+                    end
+
+                    aseColors[#aseColors + 1] = Color {
+                        r = floor(min(max(r01Gamma, 0.0), 1.0) * 255.0 + 0.5),
+                        g = floor(min(max(g01Gamma, 0.0), 1.0) * 255.0 + 0.5),
+                        b = floor(min(max(b01Gamma, 0.0), 1.0) * 255.0 + 0.5),
+                        a = 255
+                    }
+                elseif colorFormat == 0x47726179      -- "Gray"
+                    or colorFormat == 0x47524159 then -- "GRAY"
+                    -- print("Gray color space")
+
+                    local v01 = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
+                    local v8 = floor(min(max(v01, 0.0), 1.0) * 255.0 + 0.5)
+                    aseColors[#aseColors + 1] = Color { r = v8, g = v8, b = v8, a = 255 }
+                end
+            else
+                -- print("Group begin block.")
+
+                groupNesting = groupNesting + 1
+            end
+
+            -- Include block header in length.
+            blockLen = blockLen + 2
+        elseif blockHeader == 0xc002 then
+            -- print("Group end block.")
+
+            groupNesting = groupNesting - 1
+        end
+
+        i = i + blockLen
+    end
+
+    return aseColors
+end
+
 ---@param r01 number
 ---@param g01 number
 ---@param b01 number
@@ -717,164 +875,6 @@ dlg:file {
 }
 
 dlg:newrow { always = false }
-
----@param fileData string
----@param colorSpace "ADOBE_SRGB"|"S_RGB"
----@return Color[]
-local function readAse(fileData, colorSpace)
-    ---@type Color[]
-    local aseColors = { Color { r = 0, g = 0, b = 0, a = 0 } }
-
-    local strchar = string.char
-    local strfmt = string.format
-    local tconcat = table.concat
-
-    local strsub = string.sub
-    local strunpack = string.unpack
-    local floor = math.floor
-    local max = math.max
-    local min = math.min
-
-    local lenFileData = #fileData
-    local isAdobe = colorSpace == "ADOBE_RGB"
-    local groupNesting = 0
-
-    -- Ignore version block (0010) in chars 5, 6, 7, 8.
-    -- local numColors = strunpack(">i4", strsub(fileData, 9, 12))
-    -- print("numColors: " .. numColors)
-
-    local i = 13
-    while i < lenFileData do
-        local blockLen = 2
-        local blockHeader = strunpack(">i2", strsub(fileData, i, i + 1))
-        local isGroup = blockHeader == 0xc001
-        local isEntry = blockHeader == 0x0001
-        if isGroup or isEntry then
-            --Excludes header start.
-            blockLen = strunpack(">i4", strsub(fileData, i + 2, i + 5))
-            -- print("blockLen: " .. blockLen)
-
-            -- The length is the number of chars in a string. The string
-            -- is encoded in UTF-16, so it'd be 2x number of binary chars.
-            -- A terminal zero is included in the length.
-            --
-            -- Ase files downloaded from Lospec use their lower-case 6 digit
-            -- hexadecimal value as a name, e.g., "aabbcc".
-            local lenChars16 = strunpack(">i2", strsub(fileData, i + 6, i + 7))
-            -- print("lenChars16: " .. lenChars16)
-
-            -- local nameChars = {}
-            -- local j = 0
-            -- while j < lenChars16 do
-            --     local k = i + 8 + j * 2
-            --     local bin16 = strsub(fileData, k, k + 1)
-            --     local int16 = strunpack(">i2", bin16)
-            --     local char8 = ""
-            --     if int16 then char8 = strchar(int16) end
-            --     j = j + 1
-            --     nameChars[j] = char8
-
-            -- print("bin16: " .. bin16)
-            -- print("int16: " .. int16)
-            -- print(strfmt("char16: \"%s\"", char8))
-            -- end
-            -- local name = tconcat(nameChars, "")
-            -- print("name: " .. name)
-
-            if isEntry then
-                -- print("Color block.")
-
-                local iOffset = lenChars16 * 2 + i
-                local colorFormat = strunpack(">i4", strsub(fileData, iOffset + 8, iOffset + 11))
-                if colorFormat == 0x52474220 then
-                    -- print("RGB color space.")
-
-                    local r01 = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
-                    local g01 = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
-                    local b01 = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
-                    -- print(strfmt("%.6f, %.6f, %.6f", r01, g01, b01))
-
-                    aseColors[#aseColors + 1] = Color {
-                        r = floor(min(max(r01, 0.0), 1.0) * 255.0 + 0.5),
-                        g = floor(min(max(g01, 0.0), 1.0) * 255.0 + 0.5),
-                        b = floor(min(max(b01, 0.0), 1.0) * 255.0 + 0.5),
-                        a = 255
-                    }
-                elseif colorFormat == 0x434d594b then
-                    -- print("CMYK color space")
-
-                    local c = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
-                    local m = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
-                    local y = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
-                    local k = strunpack(">f", strsub(fileData, iOffset + 24, iOffset + 27))
-
-                    local r01, g01, b01 = cmykToRgb(c, m, y, k)
-
-                    aseColors[#aseColors + 1] = Color {
-                        r = floor(min(max(r01, 0.0), 1.0) * 255.0 + 0.5),
-                        g = floor(min(max(g01, 0.0), 1.0) * 255.0 + 0.5),
-                        b = floor(min(max(b01, 0.0), 1.0) * 255.0 + 0.5),
-                        a = 255
-                    }
-                elseif colorFormat == 0x4c616220      -- "Lab "
-                    or colorFormat == 0x4c414220 then -- "LAB "
-                    -- print("Lab color space")
-
-                    local l = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
-                    local a = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
-                    local b = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
-
-                    local x, y, z = cieLabToCieXyz(l * 100.0, a, b)
-
-                    local r01Linear = 0.0
-                    local g01Linear = 0.0
-                    local b01Linear = 0.0
-
-                    local r01Gamma = 0.0
-                    local g01Gamma = 0.0
-                    local b01Gamma = 0.0
-
-                    if isAdobe then
-                        r01Linear, g01Linear, b01Linear = cieXyzToLinearAdobeRgb(x, y, z)
-                        r01Gamma, g01Gamma, b01Gamma = linearAdobeRgbToGammaAdobeRgb(r01Linear, g01Linear, b01Linear)
-                    else
-                        r01Linear, g01Linear, b01Linear = cieXyzToLinearsRgb(x, y, z)
-                        r01Gamma, g01Gamma, b01Gamma = linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
-                    end
-
-                    aseColors[#aseColors + 1] = Color {
-                        r = floor(min(max(r01Gamma, 0.0), 1.0) * 255.0 + 0.5),
-                        g = floor(min(max(g01Gamma, 0.0), 1.0) * 255.0 + 0.5),
-                        b = floor(min(max(b01Gamma, 0.0), 1.0) * 255.0 + 0.5),
-                        a = 255
-                    }
-                elseif colorFormat == 0x47726179      -- "Gray"
-                    or colorFormat == 0x47524159 then -- "GRAY"
-                    -- print("Gray color space")
-
-                    local v01 = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
-                    local v8 = floor(min(max(v01, 0.0), 1.0) * 255.0 + 0.5)
-                    aseColors[#aseColors + 1] = Color { r = v8, g = v8, b = v8, a = 255 }
-                end
-            else
-                -- print("Group begin block.")
-
-                groupNesting = groupNesting + 1
-            end
-
-            -- Include block header in length.
-            blockLen = blockLen + 2
-        elseif blockHeader == 0xc002 then
-            -- print("Group end block.")
-
-            groupNesting = groupNesting - 1
-        end
-
-        i = i + blockLen
-    end
-
-    return aseColors
-end
 
 dlg:button {
     id = "importButton",
