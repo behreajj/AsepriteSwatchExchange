@@ -281,6 +281,77 @@ end
 ---@param fileData string
 ---@param colorSpace "ADOBE_SRGB"|"S_RGB"
 ---@return Color[]
+local function readAco(fileData, colorSpace)
+    ---@type Color[]
+    local aseColors = { Color { r = 0, g = 0, b = 0, a = 0 } }
+
+    local strchar = string.char
+    local strfmt = string.format
+    local strpack = string.pack
+    local strsub = string.sub
+    local strunpack = string.unpack
+    local floor = math.floor
+    local max = math.max
+    local min = math.min
+    local tconcat = table.concat
+
+    local lenFileData = #fileData
+    local isAdobe = colorSpace == "ADOBE_RGB"
+
+    -- local fmtGry = strpack(">I2", 8)
+    -- local fmtLab = strpack(">I2", 7)
+    -- local fmtCmyk = strpack(">I2", 2)
+    -- local fmtHsb = strpack(">I2", 1)
+    -- local fmtRgb = strpack(">I2", 0)
+    local fmtGry = 0x0008
+    local fmtLab = 0x0007
+    local fmtCmyk = 0x0002
+    local fmtHsb = 0x0001
+    local fmtRgb = 0x0000
+
+    -- local isInHeader = false
+    -- local isInHeader1 = false
+    -- local isInHeader2 = false
+    -- local isInColor = false
+    -- local isInRgb = false
+    -- local isInHsb = false
+    -- local isInCmyk = false
+    -- local isInLab = false
+    -- local isInGray = false
+    -- local colorsInBlock = 0
+    -- local numColors = 0
+
+    local initHead = strunpack(">i2", strsub(fileData, 1, 2))
+    local numColors = strunpack(">i2", strsub(fileData, 3, 4))
+    local initIsV1 = initHead == 0x0001
+    local initIsV2 = initHead == 0x0002
+    local blockLen = 10
+
+    local i = 0
+    while i < numColors do
+        local j = 5 + i * blockLen
+
+        local fmt = strunpack(">i2", strsub(fileData, j, j + 1))
+        local w = strunpack(">i2", strsub(fileData, j + 2, j + 3))
+        local x = strunpack(">i2", strsub(fileData, j + 4, j + 5))
+        local y = strunpack(">i2", strsub(fileData, j + 6, j + 7))
+        local z = strunpack(">i2", strsub(fileData, j + 8, j + 9))
+
+        if initIsV2 then
+            -- local spacer = strunpack(">i2", strsub(fileData, j + 10, j + 11))
+            local lenName = strunpack(">i2", strsub(fileData, j + 12, j + 13))
+            -- TODO: Update blockLen
+        end
+
+        i = i + 1
+    end
+
+    return aseColors
+end
+
+---@param fileData string
+---@param colorSpace "ADOBE_SRGB"|"S_RGB"
+---@return Color[]
 local function readAse(fileData, colorSpace)
     ---@type Color[]
     local aseColors = { Color { r = 0, g = 0, b = 0, a = 0 } }
@@ -557,9 +628,9 @@ local function writeAco(palette, colorFormat, colorSpace, grayMethod)
             local b01Gamma = b8 / 255.0
 
             local pkw = strpack(">I2", 0)
-            local pkz = pkw
-            local pky = pkw
             local pkx = pkw
+            local pky = pkw
+            local pkz = pkw
 
             if calcLinear then
                 local r01Linear = 0.0
@@ -592,9 +663,8 @@ local function writeAco(palette, colorFormat, colorSpace, grayMethod)
                         gray = cieLumTosGray(yCie)
                     end
 
-                    -- Krita seems to interpret this as linear space??
-                    local gray16 = floor((gray ^ 2.2) * 10000.0 + 0.5)
-                    pkx = strpack(">I2", gray16)
+                    local gray16 = floor(gray * 10000.0 + 0.5)
+                    pkw = strpack(">I2", gray16)
                 elseif writeCmyk then
                     local gray = grayMethodHsv(r01Gamma, g01Gamma, b01Gamma)
                     local c, m, y, black = rgbToCmyk(r01Gamma, g01Gamma, b01Gamma, gray)
@@ -605,10 +675,10 @@ local function writeAco(palette, colorFormat, colorSpace, grayMethod)
                     local y16 = floor((1.0 - y) * 65535.0 + 0.5)
                     local k16 = floor((1.0 - black) * 65535.0 + 0.5)
 
-                    pkx = strpack(">I2", c16)
-                    pky = strpack(">I2", m16)
-                    pkz = strpack(">I2", y16)
-                    pkw = strpack(">I2", k16)
+                    pkw = strpack(">I2", c16)
+                    pkx = strpack(">I2", m16) -- TODO: Is this flipped with y?
+                    pky = strpack(">I2", y16)
+                    pkz = strpack(">I2", k16)
                 elseif writeLab then
                     local l, a, b = cieXyzToCieLab(xCie, yCie, zCie)
 
@@ -623,9 +693,9 @@ local function writeAco(palette, colorFormat, colorSpace, grayMethod)
                     local a16 = 32768 + floor(257.0 * min(max(a, -127.5), 127.5))
                     local b16 = 32768 + floor(257.0 * min(max(b, -127.5), 127.5))
 
-                    pkx = strpack(">I2", b16)
-                    pky = strpack(">I2", a16)
-                    pkz = strpack(">I2", l16)
+                    pkw = strpack(">I2", b16)
+                    pkx = strpack(">I2", a16)
+                    pky = strpack(">I2", l16)
                 end
             elseif writeHsb then
                 local h01, s01, v01 = rgbToHsv(r01Gamma, g01Gamma, b01Gamma)
@@ -634,24 +704,24 @@ local function writeAco(palette, colorFormat, colorSpace, grayMethod)
                 local s16 = floor(s01 * 65535.0 + 0.5)
                 local v16 = floor(v01 * 65535.0 + 0.5)
 
-                pkx = strpack(">I2", h16)
-                pky = strpack(">I2", s16)
-                pkz = strpack(">I2", v16)
+                pkw = strpack(">I2", h16)
+                pkx = strpack(">I2", s16)
+                pky = strpack(">I2", v16)
             else
                 local r16 = floor(r01Gamma * 65535.0 + 0.5)
                 local g16 = floor(g01Gamma * 65535.0 + 0.5)
                 local b16 = floor(b01Gamma * 65535.0 + 0.5)
 
-                pkx = strpack(">I2", r16)
-                pky = strpack(">I2", g16)
-                pkz = strpack(">I2", b16)
+                pkw = strpack(">I2", r16)
+                pkx = strpack(">I2", g16)
+                pky = strpack(">I2", b16)
             end
 
             binWords[#binWords + 1] = pkColorFormat
+            binWords[#binWords + 1] = pkw
             binWords[#binWords + 1] = pkx
             binWords[#binWords + 1] = pky
             binWords[#binWords + 1] = pkz
-            binWords[#binWords + 1] = pkw
         end
 
         i = i + 1
