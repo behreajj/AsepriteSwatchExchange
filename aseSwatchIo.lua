@@ -295,7 +295,6 @@ local function readAco(fileData, colorSpace)
     local min = math.min
     local tconcat = table.concat
 
-    local lenFileData = #fileData
     local isAdobe = colorSpace == "ADOBE_RGB"
 
     local fmtGry = 0x0008
@@ -1122,15 +1121,35 @@ dlg:button {
         ---@diagnostic disable-next-line: deprecated
         local activeSprite = app.activeSprite
         if not activeSprite then
-            local newFilePrefs = app.preferences.new_file
-            local spriteSpec = ImageSpec {
-                width = newFilePrefs.width,
-                height = newFilePrefs.height,
+
+            local lenColors <const> = #aseColors
+            local rtLen <const> = math.max(16,
+                math.ceil(math.sqrt(math.max(1, lenColors))))
+
+            -- local newFilePrefs = app.preferences.new_file
+            local spec = ImageSpec {
+                -- width = newFilePrefs.width,
+                -- height = newFilePrefs.height,
+                width = rtLen,
+                height = rtLen,
                 colorMode = ColorMode.RGB,
                 transparentColor = 0
             }
-            spriteSpec.colorSpace = ColorSpace { sRGB = true }
-            activeSprite = Sprite(spriteSpec)
+            spec.colorSpace = ColorSpace { sRGB = true }
+
+            local image = Image(spec)
+            local pxItr = image:pixels()
+            local index = 0
+            for pixel in pxItr do
+                if index < lenColors then
+                    index = index + 1
+                    local aseColor = aseColors[index]
+                    pixel(aseColor.rgbaPixel)
+                end
+            end
+
+            activeSprite = Sprite(spec)
+            activeSprite.cels[1].image = image
         end
 
         local oldColorMode = activeSprite.colorMode
