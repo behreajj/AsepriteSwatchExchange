@@ -24,7 +24,7 @@ Rudimentary formulas for CMYK are included because they seemed better than throw
 
 ### ASE Files
 
-`.ase` files support palettes in RGB, CMYK, CIE LAB and grayscale formats. HSB is not supported, and reverts to RGB. Color values are stored as 32-bit floating point real numbers. As with the `.aco` format, CMYK should not be taken seriously.
+`.ase` files support palettes in RGB, CMYK, CIE LAB and Grayscale formats. HSB is not supported, and reverts to RGB. Color values are stored as 32-bit floating point real numbers. As with the `.aco` format, CMYK should not be taken seriously.
 
 GIMP does not support `.ase` imports, so they are tested against Krita. RGB format `.ase` palettes can be downloaded from [Lospec](https://lospec.com/palette-list).
 
@@ -48,15 +48,15 @@ If no sprite is open when a file is imported, the script will create a new sprit
 
 ### Color Profiles
 
-Hexadecimal codes, such as `#dc3a3a`, are not universal and transportable color identifiers, contrary to what many beginning pixel artists believe. These codes depend heavily on color profile. Two colors may appear the same, but have different hex codes, or have the same code but appear differently. While newer palette file formats are color managed, older ones, like the `.gpl` and `.pal` formats used by Aseprite, are not.
+Hexadecimal codes, such as `#dc3a3a`, are not universal and transportable color identifiers, contrary to what many beginning pixel artists believe. These codes depend heavily on a color profile. Two colors may appear the same, but have different hex codes, or have the same code but appear differently. While newer palette file formats are color managed, older ones, like the `.gpl` and `.pal` formats used by Aseprite, are not.
 
-While Aseprite defaults to [standard RGB](https://en.wikipedia.org/wiki/SRGB), Adobe software commonly uses Adobe RGB. If colors look slightly off when swapping between Aseprite and Adobe software, check the color profile by going to `Sprite > Properties`.
+Aseprite defaults to [standard RGB](https://en.wikipedia.org/wiki/SRGB), but Adobe software commonly uses Adobe RGB. If colors look slightly off when swapping between Aseprite and Adobe software, check the color profile by going to `Sprite > Properties`.
 
 Aseprite allows the color profile to be set to `.icc` files via Lua script, but not through the UI. A dialog script to set the profile can be found at my other repository, [AsepriteAddons](https://github.com/behreajj/AsepriteAddons/blob/main/dialogs/color/setColorProfile.lua). The Adobe 1998 color profile can be downloaded from [here](https://www.adobe.com/digitalimag/adobergb.html) as an `.icc`.
 
 ## Debugging
 
-This script was authored without reference to Adobe software (Illustrator, Photoshop, etc.). There are likely bugs as a result. If you would like to help improve the repository, and have access to Adobe products, please consider reaching out with sample files. In particular, `.ase` files with groups and `.aco` files in the LAB format require further testing.
+This script was authored *without* access to Illustrator or Photoshop. There are likely bugs as a result.
 
 If you would like to debug issues yourself, I recommend doing so in a hex editor. For example, the palette from the screen shot above looks like this as an `.aco`:
 
@@ -115,7 +115,7 @@ F2 F3 00 02 00 01 00 00 00 22 00 07 00 39 00 39
 99 9A 3D D8 D8 D9 3E B0 B0 B1 00 02
 ```
 
-The file begins with the header, "ASEF", `0x41 0x53 0x45 0x46`, followed by the file version, 1.0.0, `0x00 0x01 0x00 0x00`. The number of blocks is described by `0x00 0x00 0x00 0x0E`. A block of color data begins with `0x00 x01`. The number of bytes that follow after in the block, 34, is signaled by `0x00 0x22`. The length of the swatch's name, 6, with a terminal zero appended, is given by `0x00 0x007`. After the name, `0x52 0x47 0x42 0x20` signals the "RGB " format. The number of color channels to follow depends on the format. This is different from `.aco`, which always had 4 channels. For RGB, there are 3 color channels with 4 bytes per channel. The bytes represent the value as a real number. The color block concludes with the global, spot or normal color mode, `0x00 0x02`.
+The file begins with the header "ASEF", `0x41 0x53 0x45 0x46`, followed by the file version 1.0.0, `0x00 0x01 0x00 0x00`. The number of blocks is described by `0x00 0x00 0x00 0x0E`. A block of color data begins with `0x00 x01`. The number of bytes that follow after in the block, 34, is signaled by `0x00 0x22`. The length of the swatch's name, 6, with a terminal zero appended, is given by `0x00 0x007`. After the name, `0x52 0x47 0x42 0x20` signals the "RGB " format. The number of color channels to follow depends on the format. This is different from `.aco`, which always had 4 channels. For RGB, there are 3 color channels with 4 bytes per channel. The bytes represent the value as a real number. The color block concludes with the global, spot or normal color mode, `0x00 0x02`.
 
 For more samples, see the samples folder of this repository.
 

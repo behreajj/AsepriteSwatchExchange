@@ -10,11 +10,14 @@
     https://gitlab.gnome.org/GNOME/gimp/blob/gimp-2-10/app/core/gimppalette-load.c#L413
     https://gitlab.gnome.org/GNOME/gimp/-/merge_requests/849
 
+    Adobe spec:
+    https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/#50577411_pgfId-1055819
+
     ASE:
     https://devblog.cyotek.com/post/reading-adobe-swatch-exchange-ase-files-using-csharp
     https://devblog.cyotek.com/post/writing-adobe-swatch-exchange-ase-files-using-csharp
 
-    CIE-sRGB, CIE-AdobeRGB:
+    CIE-sRGB, CIE-AdobeRGB formulae:
     https://www.easyrgb.com/en/math.php
 ]]
 
@@ -357,17 +360,22 @@ local function readAco(fileData, colorSpace, externalRef)
             local l = 0.0
             local a = 0.0
             local b = 0.0
+
             if isKrita then
                 l = upky / 655.35
                 a = (upkx - 32768) / 257.0
                 b = (upkw - 32768) / 257.0
             else
+                -- TODO: Without another program that supports ACO LAB,
+                -- it's hard to know whether a and b should be signed or
+                -- unsigned integers.
+
                 upkx = strunpack(">i2", strsub(fileData, j + 4, j + 5))
                 upky = strunpack(">i2", strsub(fileData, j + 6, j + 7))
 
-                l = upkw / 100.0
-                a = upkx / 100.0
-                b = upky / 100.0
+                l = upkw * 0.01
+                a = upkx * 0.01
+                b = upky * 0.01
             end
 
             local x, y, z = cieLabToCieXyz(l, a, b)
@@ -790,8 +798,7 @@ local function writeAco(
                     local l, a, b = cieXyzToCieLab(xCie, yCie, zCie)
 
                     -- Krita's interpretation of Lab format differs from the
-                    -- file format specification.
-                    -- https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/#50577411_pgfId-1055819
+                    -- file format specification:
                     -- "The first three values in the color data are lightness,
                     -- a chrominance, and b chrominance . Lightness is a 16-bit
                     -- value from 0...10000. Chrominance components are
@@ -809,6 +816,9 @@ local function writeAco(
                         pkx = strpack(">I2", a16)
                         pkw = strpack(">I2", b16)
                     else
+                        -- TODO: Without another program that supports ACO LAB,
+                        -- it's hard to know whether a and b should be signed or
+                        -- unsigned integers.
                         l16 = floor(l * 100.0 + 0.5)
                         a16 = floor(min(max(a, -127.5), 127.5)) * 100
                         b16 = floor(min(max(b, -127.5), 127.5)) * 100
