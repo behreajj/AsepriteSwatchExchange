@@ -16,11 +16,10 @@ The minimum supported version is 1.2.40.
 **Import or Export**
 Was the issue with importing or exporting a file?
 
-**Sprite color mode**
-For example, RGB, indexed or grayscale.
-
 **File Format**
 Which file format caused the issue (ase, aco)?
+
+**Color Format**
 What was the export format (CMYK, GRAY, HSB, LAB, RGB)?
 
 **Expected behavior**
