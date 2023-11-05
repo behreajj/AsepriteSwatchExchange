@@ -712,6 +712,7 @@ local function writeAco(
     local isGryLuma = grayMethod == "LUMA"
     local isGryAdobeY = isAdobe and isGryLuma
 
+    local pkZero = strpack(">I2", 0)
     local pkColorFormat = strpack(">I2", 0)
     if writeGry then
         pkColorFormat = strpack(">I2", 8)
@@ -736,10 +737,10 @@ local function writeAco(
             local g01Gamma = g8 / 255.0
             local b01Gamma = b8 / 255.0
 
-            local pkw = strpack(">I2", 0)
-            local pkx = pkw
-            local pky = pkw
-            local pkz = pkw
+            local pkw = pkZero
+            local pkx = pkZero
+            local pky = pkZero
+            local pkz = pkZero
 
             if calcLinear then
                 local r01Linear = 0.0
@@ -1214,7 +1215,7 @@ dlg:button {
         local activeSprite = app.activeSprite
         if not activeSprite then
             local lenColors <const> = #aseColors
-            local rtLen <const> = math.max(16,
+            local rtLen <const> = math.max(8,
                 math.ceil(math.sqrt(math.max(1, lenColors))))
 
             -- local newFilePrefs = app.preferences.new_file
