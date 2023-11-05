@@ -465,6 +465,7 @@ local function readAse(fileData, colorSpace)
     ---@type Color[]
     local aseColors = { Color { r = 0, g = 0, b = 0, a = 0 } }
 
+    local strlower = string.lower
     local strsub = string.sub
     local strunpack = string.unpack
     local floor = math.floor
@@ -521,8 +522,11 @@ local function readAse(fileData, colorSpace)
                 -- print("Color block.")
 
                 local iOffset = lenChars16 * 2 + i
-                local colorFormat = strunpack(">i4", strsub(fileData, iOffset + 8, iOffset + 11))
-                if colorFormat == 0x52474220 then
+
+                -- Color formats do not need to be unpacked, since they are
+                -- human readable strings.
+                local colorFormat = strlower(strsub(fileData, iOffset + 8, iOffset + 11))
+                if colorFormat == "rgb " then
                     -- print("RGB color space.")
 
                     local r01 = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
@@ -536,7 +540,7 @@ local function readAse(fileData, colorSpace)
                         b = floor(min(max(b01, 0.0), 1.0) * 255.0 + 0.5),
                         a = 255
                     }
-                elseif colorFormat == 0x434d594b then
+                elseif colorFormat == "cmyk" then
                     -- print("CMYK color space")
 
                     local c = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
@@ -552,8 +556,7 @@ local function readAse(fileData, colorSpace)
                         b = floor(min(max(b01, 0.0), 1.0) * 255.0 + 0.5),
                         a = 255
                     }
-                elseif colorFormat == 0x4c616220      -- "Lab "
-                    or colorFormat == 0x4c414220 then -- "LAB "
+                elseif colorFormat == "lab " then
                     -- print("Lab color space")
 
                     local l = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
@@ -584,8 +587,7 @@ local function readAse(fileData, colorSpace)
                         b = floor(min(max(b01Gamma, 0.0), 1.0) * 255.0 + 0.5),
                         a = 255
                     }
-                elseif colorFormat == 0x47726179      -- "Gray"
-                    or colorFormat == 0x47524159 then -- "GRAY"
+                elseif colorFormat == "gray" then
                     -- print("Gray color space")
 
                     local v01 = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
@@ -716,17 +718,15 @@ local function writeAco(
     local isGryLuma = grayMethod == "LUMA"
     local isGryAdobeY = isAdobe and isGryLuma
 
-    -- Color space varies by user preference.
-    local fmtr = ">I2"
-    local pkColorFormat = strpack(fmtr, 0)
+    local pkColorFormat = strpack(">I2", 0)
     if writeGry then
-        pkColorFormat = strpack(fmtr, 8)
+        pkColorFormat = strpack(">I2", 8)
     elseif writeLab then
-        pkColorFormat = strpack(fmtr, 7)
+        pkColorFormat = strpack(">I2", 7)
     elseif writeCmyk then
-        pkColorFormat = strpack(fmtr, 2)
+        pkColorFormat = strpack(">I2", 2)
     elseif writeHsb then
-        pkColorFormat = strpack(fmtr, 1)
+        pkColorFormat = strpack(">I2", 1)
     end
 
     local i = 0
@@ -860,6 +860,8 @@ local function writeAco(
 
         i = i + 1
     end
+
+    -- TODO: Write version 2 with names?
 
     local pkNumColors = strpack(">I2", numColors)
     local pkVersion = strpack(">I2", 0x0001)
