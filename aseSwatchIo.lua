@@ -10,6 +10,9 @@
     https://gitlab.gnome.org/GNOME/gimp/blob/gimp-2-10/app/core/gimppalette-load.c#L413
     https://gitlab.gnome.org/GNOME/gimp/-/merge_requests/849
 
+    Krita Lab format support:
+    https://github.com/KDE/krita/blob/master/libs/pigment/resources/KoColorSet.cpp#L1658
+
     Adobe spec:
     https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/#50577411_pgfId-1055819
 
@@ -37,9 +40,9 @@ local defaults = {
 ---@param l number
 ---@param a number
 ---@param b number
----@return number
----@return number
----@return number
+---@return number x
+---@return number y
+---@return number z
 local function cieLabToCieXyz(l, a, b)
     local y = (l + 16.0) * 0.008620689655172414
     local x = a * 0.002 + y
@@ -78,9 +81,9 @@ end
 ---@param x number
 ---@param y number
 ---@param z number
----@return number
----@return number
----@return number
+---@return number l
+---@return number a
+---@return number b
 local function cieXyzToCieLab(x, y, z)
     local vx = x * 1.0521110608435826
     vx = vx > 0.008856
@@ -107,9 +110,9 @@ end
 ---@param x number
 ---@param y number
 ---@param z number
----@return number
----@return number
----@return number
+---@return number r01Lnear
+---@return number g01Lnear
+---@return number b01Lnear
 local function cieXyzToLinearAdobeRgb(x, y, z)
     local r01Linear = 2.04137 * x - 0.56495 * y - 0.34469 * z
     local g01Linear = -0.96927 * x + 1.87601 * y + 0.04156 * z
@@ -120,9 +123,9 @@ end
 ---@param x number
 ---@param y number
 ---@param z number
----@return number
----@return number
----@return number
+---@return number r01Linear
+---@return number g01Linear
+---@return number b01Linear
 local function cieXyzToLinearsRgb(x, y, z)
     local r01Linear = 3.2408123 * x - 1.5373085 * y - 0.49858654 * z
     local g01Linear = -0.969243 * x + 1.8759663 * y + 0.041555032 * z
@@ -134,9 +137,9 @@ end
 ---@param m number
 ---@param y number
 ---@param k number
----@return number
----@return number
----@return number
+---@return number r01Gamma
+---@return number g01Gamma
+---@return number b01Gamma
 local function cmykToRgb(c, m, y, k)
     local u = 1.0 - k
     local r01 = (1.0 - c) * u
@@ -148,9 +151,9 @@ end
 ---@param r01Gamma number
 ---@param g01Gamma number
 ---@param b01Gamma number
----@return number
----@return number
----@return number
+---@return number r01Linear
+---@return number g01Linear
+---@return number b01Linear
 local function gammaAdobeRgbToLinearAdobeRgb(r01Gamma, g01Gamma, b01Gamma)
     local r01Linear = r01Gamma ^ 2.19921875
     local g01Linear = g01Gamma ^ 2.19921875
@@ -161,9 +164,9 @@ end
 ---@param r01Gamma number
 ---@param g01Gamma number
 ---@param b01Gamma number
----@return number
----@return number
----@return number
+---@return number r01Linear
+---@return number g01Linear
+---@return number b01Linear
 local function gammasRgbToLinearsRgb(r01Gamma, g01Gamma, b01Gamma)
     local r01Linear = r01Gamma <= 0.04045
         and r01Gamma * 0.077399380804954
@@ -190,7 +193,7 @@ end
 ---@param b01 number
 ---@return number
 local function grayMethodHsl(r01, g01, b01)
-    return (math.min(r01, g01, b01) + math.max(r01, g01, b01)) / 2.0
+    return (math.min(r01, g01, b01) + math.max(r01, g01, b01)) * 0.5
 end
 
 ---@param r01 number
@@ -204,9 +207,9 @@ end
 ---@param hue number
 ---@param sat number
 ---@param val number
----@return number
----@return number
----@return number
+---@return number r01Gamma
+---@return number g01Gamma
+---@return number b01Gamma
 local function hsvToRgb(hue, sat, val)
     local h = (hue % 1.0) * 6.0
     local s = math.min(math.max(sat, 0.0), 1.0)
@@ -238,9 +241,9 @@ end
 ---@param r01Linear number
 ---@param g01Linear number
 ---@param b01Linear number
----@return number
----@return number
----@return number
+---@return number r01Gamma
+---@return number g01Gamma
+---@return number b01Gamma
 local function linearAdobeRgbToGammaAdobeRgb(r01Linear, g01Linear, b01Linear)
     local r01Gamma = r01Linear ^ 0.4547069271758437
     local g01Gamma = g01Linear ^ 0.4547069271758437
@@ -251,9 +254,9 @@ end
 ---@param r01Linear number
 ---@param g01Linear number
 ---@param b01Linear number
----@return number
----@return number
----@return number
+---@return number x
+---@return number y
+---@return number z
 local function linearAdobeRgbToCieXyz(r01Linear, g01Linear, b01Linear)
     local x = 0.57667 * r01Linear + 0.18555 * g01Linear + 0.18819 * b01Linear
     local y = 0.29738 * r01Linear + 0.62735 * g01Linear + 0.07527 * b01Linear
@@ -264,9 +267,9 @@ end
 ---@param r01Linear number
 ---@param g01Linear number
 ---@param b01Linear number
----@return number
----@return number
----@return number
+---@return number x
+---@return number y
+---@return number z
 local function linearsRgbToCieXyz(r01Linear, g01Linear, b01Linear)
     local x = 0.41241086 * r01Linear + 0.35758457 * g01Linear + 0.1804538 * b01Linear
     local y = 0.21264935 * r01Linear + 0.71516913 * g01Linear + 0.07218152 * b01Linear
@@ -277,9 +280,9 @@ end
 ---@param r01Linear number
 ---@param g01Linear number
 ---@param b01Linear number
----@return number
----@return number
----@return number
+---@return number r01Gamma
+---@return number g01Gamma
+---@return number b01Gamma
 local function linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
     local r01Gamma = r01Linear <= 0.0031308
         and r01Linear * 12.92
@@ -613,10 +616,10 @@ end
 ---@param g01 number
 ---@param b01 number
 ---@param gray number
----@return number
----@return number
----@return number
----@return number
+---@return number c
+---@return number m
+---@return number y
+---@return number k
 local function rgbToCmyk(r01, g01, b01, gray)
     local c = 0.0
     local m = 0.0
@@ -634,9 +637,9 @@ end
 ---@param r01 number
 ---@param g01 number
 ---@param b01 number
----@return number
----@return number
----@return number
+---@return number h
+---@return number s
+---@return number v
 local function rgbToHsv(r01, g01, b01)
     local gbmx = math.max(g01, b01)
     local gbmn = math.min(g01, b01)

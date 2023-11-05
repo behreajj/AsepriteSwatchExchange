@@ -10,7 +10,7 @@ This is an Adobe Swatch Exchange (`.ase`) and Adobe Color (`.aco`) import-export
 
 `.aco` files support palettes in RGB, HSB, CMYK, CIE LAB and Grayscale formats. Color channels are stored as 16-bit integers, i.e. in the ranges `[0, 65535]` for unsigned `[-32768, 32767]` for signed.
 
-`.aco` files from this script are tested against [Krita](https://krita.org/en/) and [GIMP](https://www.gimp.org/). GIMP doesn't seem to support the Lab format currently. Krita's conversion to and from 16-bit integers does not follow the `.aco` specification for the Lab format. On import any out-of-gamut colors that result from Lab are clamped.
+`.aco` files from this script are tested against [Krita](https://krita.org/en/) and [GIMP](https://www.gimp.org/). GIMP doesn't seem to support the Lab format currently. Krita's conversion to and from 16-bit integers does not follow the `.aco` specification for the Lab format. On import this script clamps any out-of-gamut colors.
 
 ![Krita ACO Lab](kritaLabScreenCap.png)
 
@@ -44,15 +44,27 @@ If an error message in Aseprite's console appears, check if the script folder is
 
 A hot key can be assigned to the script by going to `Edit > Keyboard Shortcuts`. The search input box in the top left of the shortcuts dialog can be used to locate the script by its file name. The dialog can be closed with `Alt+C`. The import button can be activated with `Alt+I`; export, with `Alt+E`.
 
-If no sprite is open when a file is imported, the script will create a new sprite with the palette's swatches on the canvas. If the file is an Aseprite generated `.ase` file, then it will be opened as a sprite, not as a palette. If a sprite is open, then the active sprite's palette is set to the import. Indexed color mode sprites will be converted to RGB before the palette is set, then re-converted to indexed color mode after.
+If a sprite is open, then the active sprite's palette is set to the import. Indexed color mode sprites will be converted to RGB before the palette is set, then re-converted to indexed color mode after. If no sprite is open when a file is imported, the script will create a new sprite with the palette's swatches on the canvas. If the file is an Aseprite generated `.ase` file, then it will be opened as a sprite, not as a palette.
 
 ### Color Profiles
 
-Hexadecimal codes, such as `#dc3a3a`, are not universal and transportable color identifiers. These codes depend heavily on a color profile. Two colors may appear the same, but have different hex codes, or have the same code but appear differently. While newer palette file formats are color managed, older ones, like the `.gpl` and `.pal` formats used by Aseprite, are not.
+Hexadecimal codes are not universal and transportable color identifiers. These codes depend heavily on a color profile. Two colors may appear the same, but have different hex codes, or have the same code but appear differently. While newer palette file formats are color managed, older ones, like the `.gpl` and `.pal` formats used by Aseprite, are not.
 
 Aseprite defaults to [standard RGB](https://en.wikipedia.org/wiki/SRGB), but Adobe software commonly uses Adobe RGB. If colors look slightly off when swapping between Aseprite and Adobe software, check the color profile by going to `Sprite > Properties`.
 
 Aseprite allows the color profile to be set to `.icc` files via Lua script, but not through the UI. A dialog script to set the profile can be found at my other repository, [AsepriteAddons](https://github.com/behreajj/AsepriteAddons/blob/main/dialogs/color/setColorProfile.lua). The Adobe 1998 color profile can be downloaded from [here](https://www.adobe.com/digitalimag/adobergb.html) as an `.icc`.
+
+![SRGB Wheel](sRgbWheel.png)
+
+To illustrate, above is a color wheel in sRGB. The pixel at 254, 128 is `#d92214`.
+
+![Assigned Adobe RGB Wheel](adobeRgbWheel.png)
+
+Here is the same color wheel with the Adobe RGB color profile assigned. The pixel has the same hex code, but appears different.
+
+![Converted Adobe RGB Wheel](adobeRgbConverted.png)
+
+And here is a color wheel converted to Adobe RGB. The pixel appears the same, but has a different hex code, `#ba271b`.
 
 ## Debugging
 
@@ -115,15 +127,13 @@ F2 F3 00 02 00 01 00 00 00 22 00 07 00 39 00 39
 99 9A 3D D8 D8 D9 3E B0 B0 B1 00 02
 ```
 
-The file begins with the header "ASEF" `0x41 0x53 0x45 0x46` followed by the file version 1.0.0 `0x00 0x01 0x00 0x00`. The number of blocks is described by `0x00 0x00 0x00 0x0E`. A block of color data begins with `0x00 x01`. The number of bytes that follow after in the block, 34, is signaled by `0x00 0x22`. The length of the swatch's name, 6, with a terminal zero appended, is given by `0x00 0x007`. After the name, `0x52 0x47 0x42 0x20` signals the "RGB " format. The number of color channels to follow depends on the format. This is different from `.aco`, which always had 4 channels. For RGB, there are 3 color channels with 4 bytes per channel. The bytes are converted to and from a 32-bit floating point real number. The color block concludes with the global, spot or normal color mode, `0x00 0x02`.
+The file begins with the header "ASEF" `0x41 0x53 0x45 0x46` followed by the file version 1.0.0 `0x00 0x01 0x00 0x00`. The number of blocks is described by `0x00 0x00 0x00 0x0E`. A block of color data begins with `0x00 x01`. The number of bytes that follow after in the block, 34, is signaled by `0x00 0x22`. The length of the swatch's name, 6, with a terminal zero appended, is given by `0x00 0x007`. After the name, `0x52 0x47 0x42 0x20` signals the "RGB " format. The number of color channels to follow depends on the format. This differs with `.aco`, which always had 4 channels. For RGB, there are 3 color channels with 4 bytes per channel. The bytes are converted to and from a 32-bit floating point real number. The color block concludes with the global, spot or normal color mode, `0x00 0x02`.
 
 For more samples, see the samples folder of this repository.
 
 ## Modification
 
-To modify these scripts, see Aseprite's [API Reference](https://github.com/aseprite/api). There is also a [type definition](https://github.com/behreajj/aseprite-type-definition) for use with VS Code and the [Lua Language Server extension](https://github.com/LuaLS/lua-language-server).
-
-I recommend a familiarity with Lua's `string.pack` and `string.unpack` methods. The formats for these methods can be found in Lua's [documentation](https://www.lua.org/manual/5.4/manual.html#6.4.2).
+To modify these scripts, see Aseprite's [API Reference](https://github.com/aseprite/api). There is also a [type definition](https://github.com/behreajj/aseprite-type-definition) for use with VS Code and the [Lua Language Server extension](https://github.com/LuaLS/lua-language-server). I recommend a familiarity with Lua's `string.pack` and `string.unpack` methods. The formats for these methods can be found in Lua's [documentation](https://www.lua.org/manual/5.4/manual.html#6.4.2).
 
 A useful introduction to the structure of these file formats can be found at "[Mastering Adobe Color File Formats](https://medium.com/swlh/mastering-adobe-color-file-formats-d29e43fde8eb)" by Marc Auberer. Richard Moss has a series of blog posts on [reading](https://devblog.cyotek.com/post/reading-photoshop-color-swatch-aco-files-using-csharp) and [writing](https://devblog.cyotek.com/post/writing-photoshop-color-swatch-aco-files-using-csharp) `.aco` files in C#, followed by [reading](https://devblog.cyotek.com/post/reading-adobe-swatch-exchange-ase-files-using-csharp) and [writing](https://devblog.cyotek.com/post/writing-adobe-swatch-exchange-ase-files-using-csharp) `.ase` files.
 
