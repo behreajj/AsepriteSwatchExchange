@@ -727,8 +727,6 @@ local function writeAco(
     while i < lenPalette do
         local aseColor = palette:getColor(i)
         if aseColor.alpha > 0 then
-            numColors = numColors + 1
-
             -- Unpack color.
             local r8 = aseColor.red
             local g8 = aseColor.green
@@ -845,17 +843,18 @@ local function writeAco(
                 pky = strpack(">I2", b16)
             end
 
-            binWords[#binWords + 1] = pkColorFormat
-            binWords[#binWords + 1] = pkw
-            binWords[#binWords + 1] = pkx
-            binWords[#binWords + 1] = pky
-            binWords[#binWords + 1] = pkz
+            local n5 = numColors * 5
+            numColors = numColors + 1
+
+            binWords[1 + n5] = pkColorFormat
+            binWords[2 + n5] = pkw
+            binWords[3 + n5] = pkx
+            binWords[4 + n5] = pky
+            binWords[5 + n5] = pkz
         end
 
         i = i + 1
     end
-
-    -- TODO: Write version 2 with names?
 
     local pkNumColors = strpack(">I2", numColors)
     local pkVersion = strpack(">I2", 0x0001)
