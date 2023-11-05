@@ -114,10 +114,9 @@ end
 ---@return number g01Lnear
 ---@return number b01Lnear
 local function cieXyzToLinearAdobeRgb(x, y, z)
-    local r01Linear = 2.04137 * x - 0.56495 * y - 0.34469 * z
-    local g01Linear = -0.96927 * x + 1.87601 * y + 0.04156 * z
-    local b01Linear = 0.01345 * x - 0.11839 * y + 1.01541 * z
-    return r01Linear, g01Linear, b01Linear
+    return 2.04137 * x - 0.56495 * y - 0.34469 * z,
+        -0.96927 * x + 1.87601 * y + 0.04156 * z,
+        0.01345 * x - 0.11839 * y + 1.01541 * z
 end
 
 ---@param x number
@@ -127,10 +126,9 @@ end
 ---@return number g01Linear
 ---@return number b01Linear
 local function cieXyzToLinearsRgb(x, y, z)
-    local r01Linear = 3.2408123 * x - 1.5373085 * y - 0.49858654 * z
-    local g01Linear = -0.969243 * x + 1.8759663 * y + 0.041555032 * z
-    local b01Linear = 0.0556384 * x - 0.20400746 * y + 1.0571296 * z
-    return r01Linear, g01Linear, b01Linear
+    return 3.2408123 * x - 1.5373085 * y - 0.49858654 * z,
+        -0.969243 * x + 1.8759663 * y + 0.041555032 * z,
+        0.0556384 * x - 0.20400746 * y + 1.0571296 * z
 end
 
 ---@param c number
@@ -155,10 +153,9 @@ end
 ---@return number g01Linear
 ---@return number b01Linear
 local function gammaAdobeRgbToLinearAdobeRgb(r01Gamma, g01Gamma, b01Gamma)
-    local r01Linear = r01Gamma ^ 2.19921875
-    local g01Linear = g01Gamma ^ 2.19921875
-    local b01Linear = b01Gamma ^ 2.19921875
-    return r01Linear, g01Linear, b01Linear
+    return r01Gamma ^ 2.19921875,
+        g01Gamma ^ 2.19921875,
+        b01Gamma ^ 2.19921875
 end
 
 ---@param r01Gamma number
@@ -245,10 +242,9 @@ end
 ---@return number g01Gamma
 ---@return number b01Gamma
 local function linearAdobeRgbToGammaAdobeRgb(r01Linear, g01Linear, b01Linear)
-    local r01Gamma = r01Linear ^ 0.4547069271758437
-    local g01Gamma = g01Linear ^ 0.4547069271758437
-    local b01Gamma = b01Linear ^ 0.4547069271758437
-    return r01Gamma, g01Gamma, b01Gamma
+    return r01Linear ^ 0.4547069271758437,
+        g01Linear ^ 0.4547069271758437,
+        b01Linear ^ 0.4547069271758437
 end
 
 ---@param r01Linear number
@@ -258,10 +254,9 @@ end
 ---@return number y
 ---@return number z
 local function linearAdobeRgbToCieXyz(r01Linear, g01Linear, b01Linear)
-    local x = 0.57667 * r01Linear + 0.18555 * g01Linear + 0.18819 * b01Linear
-    local y = 0.29738 * r01Linear + 0.62735 * g01Linear + 0.07527 * b01Linear
-    local z = 0.02703 * r01Linear + 0.07069 * g01Linear + 0.99110 * b01Linear
-    return x, y, z
+    return 0.57667 * r01Linear + 0.18555 * g01Linear + 0.18819 * b01Linear,
+        0.29738 * r01Linear + 0.62735 * g01Linear + 0.07527 * b01Linear,
+        0.02703 * r01Linear + 0.07069 * g01Linear + 0.99110 * b01Linear
 end
 
 ---@param r01Linear number
@@ -271,10 +266,9 @@ end
 ---@return number y
 ---@return number z
 local function linearsRgbToCieXyz(r01Linear, g01Linear, b01Linear)
-    local x = 0.41241086 * r01Linear + 0.35758457 * g01Linear + 0.1804538 * b01Linear
-    local y = 0.21264935 * r01Linear + 0.71516913 * g01Linear + 0.07218152 * b01Linear
-    local z = 0.019331759 * r01Linear + 0.11919486 * g01Linear + 0.95039004 * b01Linear
-    return x, y, z
+    return 0.41241086 * r01Linear + 0.35758457 * g01Linear + 0.1804538 * b01Linear,
+        0.21264935 * r01Linear + 0.71516913 * g01Linear + 0.07218152 * b01Linear,
+        0.019331759 * r01Linear + 0.11919486 * g01Linear + 0.95039004 * b01Linear
 end
 
 ---@param r01Linear number
