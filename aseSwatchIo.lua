@@ -26,9 +26,9 @@
 
 local colorFormats = { "CMYK", "GRAY", "HSB", "RGB", "LAB" }
 local colorSpaces = { "ADOBE_RGB", "S_RGB" }
-local grayMethods = { "HSI", "HSL", "HSV", "LUMA" }
-local fileExts = { "aco", "ase" }
 local externalRefs = { "KRITA", "OTHER" }
+local fileExts = { "aco", "act", "ase" }
+local grayMethods = { "HSI", "HSL", "HSV", "LUMA" }
 
 local defaults = {
     colorFormat = "RGB",
@@ -453,6 +453,46 @@ local function readAco(fileData, colorSpace, externalRef)
 end
 
 ---@param fileData string
+---@return Color[]
+---@return integer alphaIndex
+local function readAct(fileData)
+    ---@type Color[]
+    local aseColors = {}
+
+    -- Unlike aco and ase, this should try to preserve palette order as much
+    -- as possible and not inject zero alpha colors, etc.
+    local lenFileData = #fileData
+    local is772 = lenFileData == 772
+    local numColors = 256
+    local alphaIndex = 0
+    if is772 then
+        -- Neither GIMP nor Krita supports 772, so this is untested.
+        numColors = string.unpack(">I2", string.sub(fileData, 769, 770))
+        local aiParse = string.unpack(">I2", string.sub(fileData, 771, 772))
+        if aiParse > 0 and aiParse < numColors then
+            alphaIndex = aiParse
+        end
+        -- print("numColors: " .. numColors)
+        -- print("aiParse: " .. aiParse)
+    end
+
+    local strbyte = string.byte
+
+    local i = 0
+    local j = 0
+    while i < numColors do
+        local r = strbyte(fileData, 1 + j)
+        local g = strbyte(fileData, 2 + j)
+        local b = strbyte(fileData, 3 + j)
+        aseColors[1 + i] = Color { r = r, g = g, b = b, a = 255 }
+        i = i + 1
+        j = j + 3
+    end
+
+    return aseColors, alphaIndex
+end
+
+---@param fileData string
 ---@param colorSpace "ADOBE_SRGB"|"S_RGB"
 ---@return Color[]
 local function readAse(fileData, colorSpace)
@@ -663,6 +703,45 @@ local function rgbToHsv(r01, g01, b01)
     end
 
     return hue / 6.0, diff / mx, mx
+end
+
+---@param palette Palette
+---@return string
+local function writeAct(palette)
+    ---@type string[]
+    local binWords = {}
+    local lenPalette = #palette
+    local strchar = string.char
+    local char0 = strchar(0)
+
+    -- Unlike aco and ase, this should try to preserve palette order as much
+    -- as possible and not inject zero alpha colors, etc.
+    local i = 0
+    local j = 0
+    while i < 256 do
+        if i < lenPalette then
+            local aseColor = palette:getColor(i)
+            if aseColor.alpha > 0 then
+                binWords[1 + j] = strchar(aseColor.red)
+                binWords[2 + j] = strchar(aseColor.green)
+                binWords[3 + j] = strchar(aseColor.blue)
+                j = j + 3
+            else
+                binWords[1 + j] = char0
+                binWords[2 + j] = char0
+                binWords[3 + j] = char0
+                j = j + 3
+            end
+        else
+            binWords[1 + j] = char0
+            binWords[2 + j] = char0
+            binWords[3 + j] = char0
+            j = j + 3
+        end
+        i = i + 1
+    end
+
+    return table.concat(binWords, "")
 end
 
 ---@param palette Palette
@@ -1118,10 +1197,10 @@ dlg:button {
         end
 
         local fileExt = string.lower(app.fs.fileExtension(importFilepath))
-        if fileExt ~= "ase" and fileExt ~= "aco" then
+        if fileExt ~= "ase" and fileExt ~= "aco" and fileExt ~= "act" then
             app.alert {
                 title = "Error",
-                text = "File format must be ase or aco."
+                text = "File format must be ase, aco or act."
             }
             return
         end
@@ -1160,8 +1239,8 @@ dlg:button {
         -- 'f' is a float real number.
         local fileData = binFile:read("a")
         binFile:close()
-        local asefHeader = string.unpack(">i4", string.sub(fileData, 1, 4))
-        local isAsef = asefHeader == 0x41534546
+        local asefHeader = string.sub(fileData, 1, 4)
+        local isAsef = asefHeader == "ASEF"
         -- print(strfmt("asefHeader: 0x%08x", asefHeader))
         -- print(isAsef)
 
@@ -1205,8 +1284,11 @@ dlg:button {
 
         ---@type Color[]s
         local aseColors = {}
+        local alphaIndex = 0
         if fileExt == "aco" then
             aseColors = readAco(fileData, colorSpace, externalRef)
+        elseif fileExt == "act" then
+            aseColors, alphaIndex = readAct(fileData)
         else
             aseColors = readAse(fileData, colorSpace)
         end
@@ -1274,6 +1356,7 @@ dlg:button {
 
         if oldColorMode == ColorMode.INDEXED then
             app.command.ChangePixelFormat { format = "indexed" }
+            activeSprite.transparentColor = alphaIndex
         end
     end
 }
@@ -1328,10 +1411,10 @@ dlg:button {
         end
 
         local fileExt = string.lower(app.fs.fileExtension(exportFilepath))
-        if fileExt ~= "ase" and fileExt ~= "aco" then
+        if fileExt ~= "ase" and fileExt ~= "aco" and fileExt ~= "act" then
             app.alert {
                 title = "Error",
-                text = "File format must be ase or aco."
+                text = "File format must be ase, aco or act."
             }
             return
         end
@@ -1360,6 +1443,8 @@ dlg:button {
         if fileExt == "aco" then
             binStr = writeAco(palette, colorFormat, colorSpace, grayMethod,
                 externalRef)
+        elseif fileExt == "act" then
+            binStr = writeAct(palette)
         else
             binStr = writeAse(palette, colorFormat, colorSpace, grayMethod)
         end

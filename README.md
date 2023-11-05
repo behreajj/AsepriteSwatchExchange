@@ -2,7 +2,7 @@
 
 ![Screen Cap](screenCap.png)
 
-This is an Adobe Swatch Exchange (`.ase`) and Adobe Color (`.aco`) import-export dialog for use with the [Aseprite](https://www.aseprite.org/) [scripting API](https://www.aseprite.org/docs/scripting/). Support for both files is **partial**. The minimum supported version of Aseprite is 1.2.40.
+This is an Adobe Swatch Exchange (`.ase`), Adobe Color (`.aco`) and Adobe Color Table (`.act`) import-export dialog for use with the [Aseprite](https://www.aseprite.org/) [scripting API](https://www.aseprite.org/docs/scripting/). Support for both files is **partial**. The minimum supported version of Aseprite is 1.2.40.
 
 ## File Extensions
 
@@ -32,6 +32,10 @@ Swatches include names. This script writes the 6-digit hexadecimal code as name;
 
 These files may also include groups of colors. Groups are ignored by the importer. The distinction between global, spot and normal colors is ignored as well.
 
+### ACT Files
+
+`.act` files support 8-bit RGB colors. These files come in two versions: 768 bytes and 772 bytes. The 768 byte version has no header or meta-data, it is just 256 colors (256 * 3 = 768). At the end of the 772 version are 2 bytes listing the number of colors and 2 bytes designating a transparent index. Neither Krita nor GIMP seem to support 772 bytes, so this script writes 768. It will try to read 772 bytes. Since `.act` files seem to be intended for indexed color mode, the script preserves palette order rather than prepending a transparent mask, in contrast with `.aco` and `.ase` files.
+
 ## Download
 
 To download this script, click on the green Code button above, then select Download Zip. You can also click on the `aseSwatchIo.lua` file. Beware that some browsers will append a `.txt` file format extension to script files on download. Aseprite will not recognize the script until this is removed and the original `.lua` extension is used. There can also be issues with copying and pasting. Be sure to click on the Raw file button; do not copy the formatted code.
@@ -44,7 +48,9 @@ If an error message in Aseprite's console appears, check if the script folder is
 
 A hot key can be assigned to the script by going to `Edit > Keyboard Shortcuts`. The search input box in the top left of the shortcuts dialog can be used to locate the script by its file name. The dialog can be closed with `Alt+C`. The import button can be activated with `Alt+I`; export, with `Alt+E`.
 
-If a sprite is open, then the active sprite's palette is set to the import. Indexed color mode sprites will be converted to RGB before the palette is set, then re-converted to indexed color mode after. If no sprite is open when a file is imported, the script will create a new sprite with the palette's swatches on the canvas. If the file is an Aseprite generated `.ase` file, then it will be opened as a sprite, not as a palette.
+If a sprite is open, then the active sprite's palette is set to the import. If no sprite is open when a file is imported, the script will create a new sprite with the palette's swatches on the canvas; if the file is an Aseprite generated `.ase` file, then it will be opened as a sprite, not as a palette.
+
+Open sprites in indexed color mode will be converted to RGB before the palette is set, then re-converted to indexed color mode after. For `.aco` and `.ase` files, their transparent color will be set to zero. For `.act` files, the script will check for an index.
 
 ### Color Profiles
 
