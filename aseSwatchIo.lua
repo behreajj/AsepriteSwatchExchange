@@ -456,40 +456,63 @@ end
 ---@return Color[]
 ---@return integer alphaIndex
 local function readAct(fileData)
-    ---@type Color[]
-    local aseColors = {}
-
-    -- Unlike aco and ase, this should try to preserve palette order as much
-    -- as possible and not inject zero alpha colors, etc.
     local lenFileData = #fileData
     local is772 = lenFileData == 772
     local numColors = 256
-    local alphaIndex = 0
+    local alphaIndex = -1
     if is772 then
-        -- Neither GIMP nor Krita supports 772, so this is untested.
-        numColors = string.unpack(">I2", string.sub(fileData, 769, 770))
-        local aiParse = string.unpack(">I2", string.sub(fileData, 771, 772))
-        if aiParse > 0 and aiParse < numColors then
-            alphaIndex = aiParse
+        -- Neither GIMP nor Krita supports 772, so this was tested with
+        -- palettes from https://fornaxvoid.com/colorpalettes/ .
+        local ncParsed = string.unpack(">I2", string.sub(fileData, 769, 770))
+        numColors = math.min(ncParsed, 256)
+        -- print(string.format(
+        --     "ncParsed: %d, numColors: %d",
+        --     ncParsed, numColors))
+
+        local aiParsed = string.unpack(">I2", string.sub(fileData, 771, 772))
+        if aiParsed > 0 and aiParsed < numColors then
+            alphaIndex = aiParsed
         end
-        -- print("numColors: " .. numColors)
-        -- print("aiParse: " .. aiParse)
+        -- print(string.format(
+        --     "aiParsed: %d, alphaIndex: %d",
+        --     aiParsed, alphaIndex))
     end
 
     local strbyte = string.byte
 
+    ---@type table<integer, integer>
+    local aseDict = {}
+    local uniqueCount = 0
     local i = 0
     local j = 0
     while i < numColors do
-        local r = strbyte(fileData, 1 + j)
-        local g = strbyte(fileData, 2 + j)
-        local b = strbyte(fileData, 3 + j)
-        aseColors[1 + i] = Color { r = r, g = g, b = b, a = 255 }
+        if i ~= alphaIndex then
+            local r = strbyte(fileData, 1 + j)
+            local g = strbyte(fileData, 2 + j)
+            local b = strbyte(fileData, 3 + j)
+            local hex = 0xff000000 | b << 0x10 | g << 0x08 | r
+            if not aseDict[hex] then
+                uniqueCount = uniqueCount + 1
+                aseDict[hex] = uniqueCount
+            end
+        end
         i = i + 1
         j = j + 3
     end
 
-    return aseColors, alphaIndex
+    ---@type Color[]
+    local aseColors = {}
+    for hex, idx in pairs(aseDict) do
+        local r = hex & 0xff
+        local g = hex >> 0x08 & 0xff
+        local b = hex >> 0x10 & 0xff
+        aseColors[idx] = Color { r = r, g = g, b = b, a = 255 }
+    end
+
+    if #aseColors < 256 then
+        table.insert(aseColors, 1, Color { r = 0, g = 0, b = 0, a = 0 })
+    end
+    return aseColors, 0
 end
 
 ---@param fileData string
@@ -711,35 +734,22 @@ local function writeAct(palette)
     ---@type string[]
     local binWords = {}
     local lenPalette = #palette
+    local lenPalClamped = math.min(lenPalette, 256)
     local strchar = string.char
-    local char0 = strchar(0)
 
-    -- Unlike aco and ase, this should try to preserve palette order as much
-    -- as possible and not inject zero alpha colors, etc.
     local i = 0
-    local j = 0
-    while i < 256 do
-        if i < lenPalette then
-            local aseColor = palette:getColor(i)
-            if aseColor.alpha > 0 then
-                binWords[1 + j] = strchar(aseColor.red)
-                binWords[2 + j] = strchar(aseColor.green)
-                binWords[3 + j] = strchar(aseColor.blue)
-                j = j + 3
-            else
-                binWords[1 + j] = char0
-                binWords[2 + j] = char0
-                binWords[3 + j] = char0
-                j = j + 3
-            end
-        else
-            binWords[1 + j] = char0
-            binWords[2 + j] = char0
-            binWords[3 + j] = char0
-            j = j + 3
+    while i < lenPalClamped do
+        local aseColor = palette:getColor(i)
+        if aseColor.alpha > 0 then
+            binWords[#binWords + 1] = strchar(aseColor.red)
+            binWords[#binWords + 1] = strchar(aseColor.green)
+            binWords[#binWords + 1] = strchar(aseColor.blue)
         end
         i = i + 1
     end
+
+    local char0 = strchar(0)
+    while #binWords < 768 do binWords[#binWords + 1] = char0 end
 
     return table.concat(binWords, "")
 end
