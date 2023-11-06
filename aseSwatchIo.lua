@@ -24,7 +24,7 @@
     https://www.easyrgb.com/en/math.php
 ]]
 
-local colorFormats = { "CMYK", "GRAY", "HSB", "RGB", "LAB" }
+local colorFormats = { "CMYK", "GRAY", "HSB", "LAB", "RGB" }
 local colorSpaces = { "ADOBE_RGB", "S_RGB" }
 local externalRefs = { "KRITA", "OTHER" }
 local fileExts = { "aco", "act", "ase" }
