@@ -454,7 +454,6 @@ end
 
 ---@param fileData string
 ---@return Color[]
----@return integer alphaIndex
 local function readAct(fileData)
     local lenFileData = #fileData
     local is772 = lenFileData == 772
@@ -481,7 +480,7 @@ local function readAct(fileData)
     local strbyte = string.byte
 
     ---@type table<integer, integer>
-    local aseDict = {}
+    local hexDict = {}
     local uniqueCount = 0
     local i = 0
     local j = 0
@@ -491,9 +490,9 @@ local function readAct(fileData)
             local g = strbyte(fileData, 2 + j)
             local b = strbyte(fileData, 3 + j)
             local hex = 0xff000000 | b << 0x10 | g << 0x08 | r
-            if not aseDict[hex] then
+            if not hexDict[hex] then
                 uniqueCount = uniqueCount + 1
-                aseDict[hex] = uniqueCount
+                hexDict[hex] = uniqueCount
             end
         end
         i = i + 1
@@ -502,17 +501,17 @@ local function readAct(fileData)
 
     ---@type Color[]
     local aseColors = {}
-    for hex, idx in pairs(aseDict) do
-        local r = hex & 0xff
-        local g = hex >> 0x08 & 0xff
-        local b = hex >> 0x10 & 0xff
-        aseColors[idx] = Color { r = r, g = g, b = b, a = 255 }
+    for hex, idx in pairs(hexDict) do
+        local r8 = hex & 0xff
+        local g8 = hex >> 0x08 & 0xff
+        local b8 = hex >> 0x10 & 0xff
+        aseColors[idx] = Color { r = r8, g = g8, b = b8, a = 255 }
     end
 
     if #aseColors < 256 then
         table.insert(aseColors, 1, Color { r = 0, g = 0, b = 0, a = 0 })
     end
-    return aseColors, 0
+    return aseColors
 end
 
 ---@param fileData string
@@ -731,26 +730,41 @@ end
 ---@param palette Palette
 ---@return string
 local function writeAct(palette)
+    ---@type table<integer, integer>
+    local hexDict = {}
+    local uniqueCount = 0
+    local lenPalette = #palette
+    local h = 0
+    while h < lenPalette do
+        local aseColor = palette:getColor(h)
+        if aseColor.alpha > 0 then
+            local r8 = aseColor.red
+            local g8 = aseColor.green
+            local b8 = aseColor.blue
+            local hex = 0xff000000 | b8 << 0x10 | g8 << 0x08 | r8
+            if uniqueCount < 256 and (not hexDict[hex]) then
+                hexDict[hex] = uniqueCount
+                uniqueCount = uniqueCount + 1
+            end
+        end
+        h = h + 1
+    end
+
     ---@type string[]
     local binWords = {}
-    local lenPalette = #palette
-    local lenPalClamped = math.min(lenPalette, 256)
     local strchar = string.char
-
-    local i = 0
-    while i < lenPalClamped do
-        local aseColor = palette:getColor(i)
-        if aseColor.alpha > 0 then
-            binWords[#binWords + 1] = strchar(aseColor.red)
-            binWords[#binWords + 1] = strchar(aseColor.green)
-            binWords[#binWords + 1] = strchar(aseColor.blue)
-        end
-        i = i + 1
+    for hex, idx in pairs(hexDict) do
+        local r8 = hex & 0xff
+        local g8 = hex >> 0x08 & 0xff
+        local b8 = hex >> 0x10 & 0xff
+        local j = idx * 3
+        binWords[1 + j] = strchar(r8)
+        binWords[2 + j] = strchar(g8)
+        binWords[3 + j] = strchar(b8)
     end
 
     local char0 = strchar(0)
     while #binWords < 768 do binWords[#binWords + 1] = char0 end
-
     return table.concat(binWords, "")
 end
 
@@ -1294,11 +1308,10 @@ dlg:button {
 
         ---@type Color[]s
         local aseColors = {}
-        local alphaIndex = 0
         if fileExt == "aco" then
             aseColors = readAco(fileData, colorSpace, externalRef)
         elseif fileExt == "act" then
-            aseColors, alphaIndex = readAct(fileData)
+            aseColors = readAct(fileData)
         else
             aseColors = readAse(fileData, colorSpace)
         end
@@ -1366,7 +1379,6 @@ dlg:button {
 
         if oldColorMode == ColorMode.INDEXED then
             app.command.ChangePixelFormat { format = "indexed" }
-            activeSprite.transparentColor = alphaIndex
         end
     end
 }
