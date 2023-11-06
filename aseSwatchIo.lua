@@ -1147,13 +1147,34 @@ dlg:combobox {
     focus = false,
     onchange = function()
         local args = dlg.data
-        local state = args.colorFormat --[[@as string]]
-        local isGray = state == "GRAY"
-        local isLab = state == "LAB"
-        local isLabOrGray = isLab or isGray
-        dlg:modify { id = "colorSpace", visible = isLabOrGray }
+        local cf = args.colorFormat --[[@as string]]
+        local gm = args.grayMethod --[[@as string]]
+        local isGray = cf == "GRAY"
+        local isLab = cf == "LAB"
+        local isLuma = gm == "LUMA"
         dlg:modify { id = "grayMethod", visible = isGray }
-        dlg:modify { id = "externalRef", visible = isLabOrGray }
+        dlg:modify { id = "colorSpace", visible = isLab or (isGray and isLuma) }
+        dlg:modify { id = "externalRef", visible = isLab or isGray }
+    end
+}
+
+dlg:newrow { always = false }
+
+dlg:combobox {
+    id = "grayMethod",
+    label = "Method:",
+    option = defaults.grayMethod,
+    options = grayMethods,
+    focus = false,
+    visible = defaults.colorSpace == "GRAY",
+    onchange = function()
+        local args = dlg.data
+        local cf = args.colorFormat --[[@as string]]
+        local gm = args.grayMethod --[[@as string]]
+        local isGray = cf == "GRAY"
+        local isLab = cf == "LAB"
+        local isLuma = gm == "LUMA"
+        dlg:modify { id = "colorSpace", visible = isLab or (isGray and isLuma) }
     end
 }
 
@@ -1165,19 +1186,9 @@ dlg:combobox {
     option = defaults.colorSpace,
     options = colorSpaces,
     focus = false,
-    visible = defaults.colorSpace == "GRAY"
-        or defaults.colorSpace == "LAB"
-}
-
-dlg:newrow { always = false }
-
-dlg:combobox {
-    id = "grayMethod",
-    label = "Method:",
-    option = defaults.grayMethod,
-    options = grayMethods,
-    focus = false,
-    visible = defaults.colorSpace == "GRAY"
+    visible = defaults.colorSpace == "LAB"
+        or (defaults.colorSpace == "GRAY"
+            and defaults.grayMethod == "LUMA")
 }
 
 dlg:newrow { always = false }
