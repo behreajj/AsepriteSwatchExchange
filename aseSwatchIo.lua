@@ -533,8 +533,10 @@ local function readAse(fileData, colorSpace, externalRef)
     local min = math.min
 
     local lScalar = 100.0
-    if externalRef == "GIMP" then lScalar = 1.0 end
-    if externalRef == "KRITA" then lScalar = 100.0 end
+    local isGimp = externalRef == "GIMP"
+    local isKrita = externalRef == "KRITA"
+    if isGimp then lScalar = 1.0 end
+    if isKrita then lScalar = 100.0 end
 
     local lenFileData = #fileData
     local isAdobe = colorSpace == "ADOBE_RGB"
@@ -613,6 +615,14 @@ local function readAse(fileData, colorSpace, externalRef)
                     local k = strunpack(">f", strsub(fileData, iOffset + 24, iOffset + 27))
 
                     local r01, g01, b01 = cmykToRgb(c, m, y, k)
+
+                    if isGimp then
+                        if isAdobe then
+                            r01, g01, b01 = linearAdobeRgbToGammaAdobeRgb(r01, g01, b01)
+                        else
+                            r01, g01, b01 = linearsRgbToGammasRgb(r01, g01, b01)
+                        end
+                    end
 
                     aseColors[#aseColors + 1] = Color {
                         r = floor(min(max(r01, 0.0), 1.0) * 255.0 + 0.5),
@@ -889,13 +899,13 @@ local function writeAco(
                     pkw = strpack(">I2", gray16)
                 elseif writeCmyk then
                     local gray = grayMethodHsv(r01Gamma, g01Gamma, b01Gamma)
-                    local c, m, y, black = rgbToCmyk(r01Gamma, g01Gamma, b01Gamma, gray)
+                    local c, m, y, k = rgbToCmyk(r01Gamma, g01Gamma, b01Gamma, gray)
 
                     -- Ink is inverted.
                     local c16 = floor((1.0 - c) * 65535.0 + 0.5)
                     local m16 = floor((1.0 - m) * 65535.0 + 0.5)
                     local y16 = floor((1.0 - y) * 65535.0 + 0.5)
-                    local k16 = floor((1.0 - black) * 65535.0 + 0.5)
+                    local k16 = floor((1.0 - k) * 65535.0 + 0.5)
 
                     pkw = strpack(">I2", c16)
                     pkx = strpack(">I2", m16)
@@ -1014,8 +1024,10 @@ local function writeAse(
     local isGryAdobeY = isAdobe and isGryLuma
 
     local lScalar = 0.01
-    if externalRef == "GIMP" then lScalar = 1.0 end
-    if externalRef == "KRITA" then lScalar = 0.01 end
+    local isGimp = externalRef == "GIMP"
+    local isKrita = externalRef == "KRITA"
+    if isGimp then lScalar = 1.0 end
+    if isKrita then lScalar = 0.01 end
 
     -- Block length and color space vary by user preference.
     local pkBlockLen = strpack(">i4", 34)
@@ -1110,13 +1122,23 @@ local function writeAse(
                     pkx = strpack(">f", gray)
                     binWords[#binWords + 1] = pkx -- 24
                 elseif writeCmyk then
-                    local gray = grayMethodHsv(r01Gamma, g01Gamma, b01Gamma)
-                    local c, m, y, black = rgbToCmyk(r01Gamma, g01Gamma, b01Gamma, gray)
+                    local gray = 0.0
+                    local c = 0.0
+                    local m = 0.0
+                    local y = 0.0
+                    local k = 0.0
+                    if isGimp then
+                        gray = grayMethodHsv(r01Linear, g01Linear, b01Linear)
+                        c, m, y, k = rgbToCmyk(r01Linear, g01Linear, b01Linear, gray)
+                    else
+                        gray = grayMethodHsv(r01Gamma, g01Gamma, b01Gamma)
+                        c, m, y, k = rgbToCmyk(r01Gamma, g01Gamma, b01Gamma, gray)
+                    end
 
                     pkx = strpack(">f", c)
                     pky = strpack(">f", m)
                     pkz = strpack(">f", y)
-                    local pkw = strpack(">f", black)
+                    local pkw = strpack(">f", k)
 
                     binWords[#binWords + 1] = pkx -- 24
                     binWords[#binWords + 1] = pky -- 28
@@ -1165,14 +1187,18 @@ dlg:combobox {
     focus = false,
     onchange = function()
         local args = dlg.data
+
         local cf = args.colorFormat --[[@as string]]
-        local gm = args.grayMethod --[[@as string]]
         local isGray = cf == "GRAY"
         local isLab = cf == "LAB"
+        local isCmyk = cf == "CMYK"
+
+        local gm = args.grayMethod --[[@as string]]
         local isLuma = gm == "LUMA"
+
         dlg:modify { id = "grayMethod", visible = isGray }
         dlg:modify { id = "colorSpace", visible = isLab or (isGray and isLuma) }
-        dlg:modify { id = "externalRef", visible = isLab or isGray }
+        dlg:modify { id = "externalRef", visible = isLab or isCmyk or isGray }
     end
 }
 
@@ -1218,6 +1244,7 @@ dlg:combobox {
     options = externalRefs,
     focus = false,
     visible = defaults.colorSpace == "LAB"
+        or defaults.colorSpace == "CMYK"
 }
 
 dlg:separator { id = "cancelSep" }
