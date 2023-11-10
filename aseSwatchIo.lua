@@ -615,7 +615,6 @@ local function readAse(fileData, colorSpace, externalRef)
                     local k = strunpack(">f", strsub(fileData, iOffset + 24, iOffset + 27))
 
                     local r01, g01, b01 = cmykToRgb(c, m, y, k)
-
                     if isGimp then
                         if isAdobe then
                             r01, g01, b01 = linearAdobeRgbToGammaAdobeRgb(r01, g01, b01)
@@ -1197,7 +1196,8 @@ dlg:combobox {
         local isLuma = gm == "LUMA"
 
         dlg:modify { id = "grayMethod", visible = isGray }
-        dlg:modify { id = "colorSpace", visible = isLab or (isGray and isLuma) }
+        dlg:modify { id = "colorSpace", visible = isLab or isCmyk
+            or (isGray and isLuma) }
         dlg:modify { id = "externalRef", visible = isLab or isCmyk or isGray }
     end
 }
@@ -1231,6 +1231,7 @@ dlg:combobox {
     options = colorSpaces,
     focus = false,
     visible = defaults.colorSpace == "LAB"
+        or defaults.colorSpace == "CMYK"
         or (defaults.colorSpace == "GRAY"
             and defaults.grayMethod == "LUMA")
 }
@@ -1379,10 +1380,7 @@ dlg:button {
             local rtLen <const> = math.max(8,
                 math.ceil(math.sqrt(math.max(1, lenColors))))
 
-            -- local newFilePrefs = app.preferences.new_file
             local spec = ImageSpec {
-                -- width = newFilePrefs.width,
-                -- height = newFilePrefs.height,
                 width = rtLen,
                 height = rtLen,
                 colorMode = ColorMode.RGB,
