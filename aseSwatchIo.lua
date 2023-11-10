@@ -20,13 +20,16 @@
     https://devblog.cyotek.com/post/reading-adobe-swatch-exchange-ase-files-using-csharp
     https://devblog.cyotek.com/post/writing-adobe-swatch-exchange-ase-files-using-csharp
 
+    GIMP ASE support (NEW):
+    https://gitlab.gnome.org/GNOME/gimp/blob/gimp-2-10/app/core/gimppalette-load.c#L931
+
     CIE-sRGB, CIE-AdobeRGB formulae:
     https://www.easyrgb.com/en/math.php
 ]]
 
 local colorFormats = { "CMYK", "GRAY", "HSB", "LAB", "RGB" }
 local colorSpaces = { "ADOBE_RGB", "S_RGB" }
-local externalRefs = { "KRITA", "OTHER" }
+local externalRefs = { "GIMP", "KRITA", "OTHER" }
 local fileExts = { "aco", "act", "ase" }
 local grayMethods = { "HSI", "HSL", "HSV", "LUMA" }
 
@@ -516,8 +519,9 @@ end
 
 ---@param fileData string
 ---@param colorSpace "ADOBE_SRGB"|"S_RGB"
+---@param externalRef "GIMP"|"KRITA"|"OTHER"
 ---@return Color[]
-local function readAse(fileData, colorSpace)
+local function readAse(fileData, colorSpace, externalRef)
     ---@type Color[]
     local aseColors = { Color { r = 0, g = 0, b = 0, a = 0 } }
 
@@ -527,6 +531,10 @@ local function readAse(fileData, colorSpace)
     local floor = math.floor
     local max = math.max
     local min = math.min
+
+    local lScalar = 100.0
+    if externalRef == "GIMP" then lScalar = 1.0 end
+    if externalRef == "KRITA" then lScalar = 100.0 end
 
     local lenFileData = #fileData
     local isAdobe = colorSpace == "ADOBE_RGB"
@@ -619,7 +627,7 @@ local function readAse(fileData, colorSpace)
                     local a = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
                     local b = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
 
-                    local x, y, z = cieLabToCieXyz(l * 100.0, a, b)
+                    local x, y, z = cieLabToCieXyz(l * lScalar, a, b)
 
                     local r01Linear = 0.0
                     local g01Linear = 0.0
@@ -971,8 +979,14 @@ end
 ---@param colorFormat "CMYK"|"GRAY"|"LAB"|"RGB"
 ---@param colorSpace "ADOBE_SRGB"|"S_RGB"
 ---@param grayMethod "HSI"|"HSL"|"HSV"|"LUMA"
+---@param externalRef "GIMP"|"KRITA"|"OTHER"
 ---@return string
-local function writeAse(palette, colorFormat, colorSpace, grayMethod)
+local function writeAse(
+    palette,
+    colorFormat,
+    colorSpace,
+    grayMethod,
+    externalRef)
     -- Cache commonly used methods.
     local strbyte = string.byte
     local strfmt = string.format
@@ -998,6 +1012,10 @@ local function writeAse(palette, colorFormat, colorSpace, grayMethod)
     local isGryHsl = grayMethod == "HSL"
     local isGryLuma = grayMethod == "LUMA"
     local isGryAdobeY = isAdobe and isGryLuma
+
+    local lScalar = 0.01
+    if externalRef == "GIMP" then lScalar = 1.0 end
+    if externalRef == "KRITA" then lScalar = 0.01 end
 
     -- Block length and color space vary by user preference.
     local pkBlockLen = strpack(">i4", 34)
@@ -1107,7 +1125,7 @@ local function writeAse(palette, colorFormat, colorSpace, grayMethod)
                 elseif writeLab then
                     local l, a, b = cieXyzToCieLab(xCie, yCie, zCie)
 
-                    pkx = strpack(">f", l * 0.01)
+                    pkx = strpack(">f", l * lScalar)
                     pky = strpack(">f", a)
                     pkz = strpack(">f", b)
 
@@ -1324,7 +1342,7 @@ dlg:button {
         elseif fileExt == "act" then
             aseColors = readAct(fileData)
         else
-            aseColors = readAse(fileData, colorSpace)
+            aseColors = readAse(fileData, colorSpace, externalRef)
         end
 
         ---@diagnostic disable-next-line: deprecated
@@ -1479,7 +1497,8 @@ dlg:button {
         elseif fileExt == "act" then
             binStr = writeAct(palette)
         else
-            binStr = writeAse(palette, colorFormat, colorSpace, grayMethod)
+            binStr = writeAse(palette, colorFormat, colorSpace, grayMethod,
+                externalRef)
         end
         binFile:write(binStr)
         binFile:close()

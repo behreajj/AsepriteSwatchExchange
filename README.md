@@ -26,11 +26,13 @@ Rudimentary formulas for CMYK are included because they seemed better than throw
 
 `.ase` files support palettes in RGB, CMYK, CIE LAB and Grayscale formats. HSB is not supported; the exporter will default to RGB. Color values are stored as 32-bit floating point real numbers. As with the `.aco` format, CMYK should not be taken seriously.
 
-GIMP does not support `.ase` imports, so they are tested against Krita only. RGB format `.ase` palettes can be downloaded from [Lospec](https://lospec.com/palette-list).
+`.ase` imports were tested initially with Krita. GIMP added support for `.ase` palettes as of version 2.10.36 on November 17, 2023. Krita treats the lightness channel as being in the range [0.0, 1.0]; Gimp, in [0.0, 100.0].
 
 Swatches include names. This script writes the 6-digit hexadecimal code as name; it does not read the name on import.
 
 These files may also include groups of colors. Groups are ignored by the importer. The distinction between global, spot and normal colors is ignored as well.
+
+RGB format `.ase` palettes can be downloaded from [Lospec](https://lospec.com/palette-list).
 
 ### ACT Files
 
