@@ -27,13 +27,13 @@
     https://www.easyrgb.com/en/math.php
 ]]
 
-local colorFormats = { "CMYK", "GRAY", "HSB", "LAB", "RGB" }
-local colorSpaces = { "ADOBE_RGB", "S_RGB" }
-local externalRefs = { "GIMP", "KRITA", "OTHER" }
-local fileExts = { "aco", "act", "ase" }
-local grayMethods = { "HSI", "HSL", "HSV", "LUMA" }
+local colorFormats <const> = { "CMYK", "GRAY", "HSB", "LAB", "RGB" }
+local colorSpaces <const> = { "ADOBE_RGB", "S_RGB" }
+local externalRefs <const> = { "GIMP", "KRITA", "OTHER" }
+local fileExts <const> = { "aco", "act", "ase" }
+local grayMethods <const> = { "HSI", "HSL", "HSV", "LUMA" }
 
-local defaults = {
+local defaults <const> = {
     colorFormat = "RGB",
     colorSpace = "S_RGB",
     grayMethod = "LUMA",
@@ -51,9 +51,9 @@ local function cieLabToCieXyz(l, a, b)
     local x = a * 0.002 + y
     local z = y - b * 0.005
 
-    local ye3 = y * y * y
-    local xe3 = x * x * x
-    local ze3 = z * z * z
+    local ye3 <const> = (y * y) * y
+    local xe3 <const> = (x * x) * x
+    local ze3 <const> = (z * z) * z
 
     y = ye3 > 0.008856 and ye3
         or (y - 0.13793103448275862) * 0.12841751101180157
@@ -103,9 +103,9 @@ local function cieXyzToCieLab(x, y, z)
         and vz ^ 0.3333333333333333
         or 7.787 * vz + 0.13793103448275862
 
-    local l = 116.0 * vy - 16.0
-    local a = 500.0 * (vx - vy)
-    local b = 200.0 * (vy - vz)
+    local l <const> = 116.0 * vy - 16.0
+    local a <const> = 500.0 * (vx - vy)
+    local b <const> = 200.0 * (vy - vz)
 
     return l, a, b
 end
@@ -142,10 +142,10 @@ end
 ---@return number g01Gamma
 ---@return number b01Gamma
 local function cmykToRgb(c, m, y, k)
-    local u = 1.0 - k
-    local r01 = (1.0 - c) * u
-    local g01 = (1.0 - m) * u
-    local b01 = (1.0 - y) * u
+    local u <const> = 1.0 - k
+    local r01 <const> = (1.0 - c) * u
+    local g01 <const> = (1.0 - m) * u
+    local b01 <const> = (1.0 - y) * u
     return r01, g01, b01
 end
 
@@ -168,13 +168,13 @@ end
 ---@return number g01Linear
 ---@return number b01Linear
 local function gammasRgbToLinearsRgb(r01Gamma, g01Gamma, b01Gamma)
-    local r01Linear = r01Gamma <= 0.04045
+    local r01Linear <const> = r01Gamma <= 0.04045
         and r01Gamma * 0.077399380804954
         or ((r01Gamma + 0.055) * 0.9478672985782) ^ 2.4
-    local g01Linear = g01Gamma <= 0.04045
+    local g01Linear <const> = g01Gamma <= 0.04045
         and g01Gamma * 0.077399380804954
         or ((g01Gamma + 0.055) * 0.9478672985782) ^ 2.4
-    local b01Linear = b01Gamma <= 0.04045
+    local b01Linear <const> = b01Gamma <= 0.04045
         and b01Gamma * 0.077399380804954
         or ((b01Gamma + 0.055) * 0.9478672985782) ^ 2.4
     return r01Linear, g01Linear, b01Linear
@@ -211,15 +211,15 @@ end
 ---@return number g01Gamma
 ---@return number b01Gamma
 local function hsvToRgb(hue, sat, val)
-    local h = (hue % 1.0) * 6.0
-    local s = math.min(math.max(sat, 0.0), 1.0)
-    local v = math.min(math.max(val, 0.0), 1.0)
+    local h <const> = (hue % 1.0) * 6.0
+    local s <const> = math.min(math.max(sat, 0.0), 1.0)
+    local v <const> = math.min(math.max(val, 0.0), 1.0)
 
-    local sector = math.floor(h)
-    local secf = sector + 0.0
-    local tint1 = v * (1.0 - s)
-    local tint2 = v * (1.0 - s * (h - secf))
-    local tint3 = v * (1.0 - s * (1.0 + secf - h))
+    local sector <const> = math.floor(h)
+    local secf <const> = sector + 0.0
+    local tint1 <const> = v * (1.0 - s)
+    local tint2 <const> = v * (1.0 - s * (h - secf))
+    local tint3 <const> = v * (1.0 - s * (1.0 + secf - h))
 
     if sector == 0 then
         return v, tint3, tint1
@@ -281,13 +281,13 @@ end
 ---@return number g01Gamma
 ---@return number b01Gamma
 local function linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
-    local r01Gamma = r01Linear <= 0.0031308
+    local r01Gamma <const> = r01Linear <= 0.0031308
         and r01Linear * 12.92
         or (r01Linear ^ 0.41666666666667) * 1.055 - 0.055
-    local g01Gamma = g01Linear <= 0.0031308
+    local g01Gamma <const> = g01Linear <= 0.0031308
         and g01Linear * 12.92
         or (g01Linear ^ 0.41666666666667) * 1.055 - 0.055
-    local b01Gamma = b01Linear <= 0.0031308
+    local b01Gamma <const> = b01Linear <= 0.0031308
         and b01Linear * 12.92
         or (b01Linear ^ 0.41666666666667) * 1.055 - 0.055
     return r01Gamma, g01Gamma, b01Gamma
@@ -299,27 +299,27 @@ end
 ---@return Color[]
 local function readAco(fileData, colorSpace, externalRef)
     ---@type Color[]
-    local aseColors = { Color { r = 0, g = 0, b = 0, a = 0 } }
+    local aseColors <const> = { Color { r = 0, g = 0, b = 0, a = 0 } }
 
-    local strsub = string.sub
-    local strunpack = string.unpack
-    local floor = math.floor
-    local max = math.max
-    local min = math.min
+    local strsub <const> = string.sub
+    local strunpack <const> = string.unpack
+    local floor <const> = math.floor
+    local max <const> = math.max
+    local min <const> = math.min
 
-    local isAdobe = colorSpace == "ADOBE_RGB"
-    local isKrita = externalRef == "KRITA"
+    local isAdobe <const> = colorSpace == "ADOBE_RGB"
+    local isKrita <const> = externalRef == "KRITA"
     local exponent = 1.0
     if isKrita then exponent = 1.0 / 2.2 end
 
-    local fmtGry = 0x0008
-    local fmtLab = 0x0007
-    local fmtCmyk = 0x0002
-    local fmtHsb = 0x0001
+    local fmtGry <const> = 0x0008
+    local fmtLab <const> = 0x0007
+    local fmtCmyk <const> = 0x0002
+    local fmtHsb <const> = 0x0001
 
-    local initHead = strunpack(">I2", strsub(fileData, 1, 2))
-    local numColors = strunpack(">I2", strsub(fileData, 3, 4))
-    local initIsV2 = initHead == 0x0002
+    local initHead <const> = strunpack(">I2", strsub(fileData, 1, 2))
+    local numColors <const> = strunpack(">I2", strsub(fileData, 3, 4))
+    local initIsV2 <const> = initHead == 0x0002
     local blockLen = 10
 
     -- print(string.format("%02X", initHead))
@@ -333,11 +333,17 @@ local function readAco(fileData, colorSpace, externalRef)
 
         -- print(string.format("\ni: %d, j: %d", i, j))
 
-        local fmt = strunpack(">I2", strsub(fileData, j, j + 1))
-        local upkw = strunpack(">I2", strsub(fileData, j + 2, j + 3))
-        local upkx = strunpack(">I2", strsub(fileData, j + 4, j + 5))
-        local upky = strunpack(">I2", strsub(fileData, j + 6, j + 7))
-        local upkz = strunpack(">I2", strsub(fileData, j + 8, j + 9))
+        local fmt <const> = strunpack(">I2", strsub(fileData, j, j + 1))
+
+        local upkwStr <const> = strsub(fileData, j + 2, j + 3)
+        local upkxStr <const> = strsub(fileData, j + 4, j + 5)
+        local upkyStr <const> = strsub(fileData, j + 6, j + 7)
+        local upkzStr <const> = strsub(fileData, j + 8, j + 9)
+
+        local upkw <const> = strunpack(">I2", upkwStr)
+        local upkx = strunpack(">I2", upkxStr)
+        local upky = strunpack(">I2", upkyStr)
+        local upkz <const> = strunpack(">I2", upkzStr)
 
         -- print(string.format("fmt: %d (0x%02x)", fmt, fmt))
         -- print(string.format("upw: %d (0x%02x)", upkw, upkw))
@@ -350,7 +356,7 @@ local function readAco(fileData, colorSpace, externalRef)
         local b01 = 0.0
 
         if fmt == fmtGry then
-            local gray = (upkw * 0.0001) ^ exponent
+            local gray <const> = (upkw * 0.0001) ^ exponent
             r01 = gray
             g01 = gray
             b01 = gray
@@ -370,15 +376,15 @@ local function readAco(fileData, colorSpace, externalRef)
                 -- it's hard to know whether a and b should be signed or
                 -- unsigned integers.
 
-                upkx = strunpack(">i2", strsub(fileData, j + 4, j + 5))
-                upky = strunpack(">i2", strsub(fileData, j + 6, j + 7))
+                upkx = strunpack(">i2", upkxStr)
+                upky = strunpack(">i2", upkyStr)
 
                 l = upkw * 0.01
                 a = upkx * 0.01
                 b = upky * 0.01
             end
 
-            local x, y, z = cieLabToCieXyz(l, a, b)
+            local x <const>, y <const>, z <const> = cieLabToCieXyz(l, a, b)
 
             local r01Linear = 0.0
             local g01Linear = 0.0
@@ -396,19 +402,19 @@ local function readAco(fileData, colorSpace, externalRef)
             --     "LAB: l: %.3f, a: %.3f, b: %.3f",
             --     l, a, b))
         elseif fmt == fmtCmyk then
-            local c = 1.0 - upkw / 65535.0
-            local m = 1.0 - upkx / 65535.0
-            local y = 1.0 - upky / 65535.0
-            local k = 1.0 - upkz / 65535.0
+            local c <const> = 1.0 - upkw / 65535.0
+            local m <const> = 1.0 - upkx / 65535.0
+            local y <const> = 1.0 - upky / 65535.0
+            local k <const> = 1.0 - upkz / 65535.0
             r01, g01, b01 = cmykToRgb(c, m, y, k)
 
             -- print(strfmt(
             --     "CMYK: c: %.3f, m: %.3f, y: %.3f, k: %.3f",
             --     c, m, y, k))
         elseif fmt == fmtHsb then
-            local hue = upkw / 65535.0
-            local saturation = upkx / 65535.0
-            local value = upky / 65535.0
+            local hue <const> = upkw / 65535.0
+            local saturation <const> = upkx / 65535.0
+            local value <const> = upky / 65535.0
             r01, g01, b01 = hsvToRgb(hue, saturation, value)
 
             -- print(strfmt(
@@ -424,15 +430,15 @@ local function readAco(fileData, colorSpace, externalRef)
             --     r01, g01, b01))
         end
 
-        local r8 = floor(min(max(r01, 0.0), 1.0) * 255.0 + 0.5)
-        local g8 = floor(min(max(g01, 0.0), 1.0) * 255.0 + 0.5)
-        local b8 = floor(min(max(b01, 0.0), 1.0) * 255.0 + 0.5)
+        local r8 <const> = floor(min(max(r01, 0.0), 1.0) * 255.0 + 0.5)
+        local g8 <const> = floor(min(max(g01, 0.0), 1.0) * 255.0 + 0.5)
+        local b8 <const> = floor(min(max(b01, 0.0), 1.0) * 255.0 + 0.5)
 
         -- print(string.format(
         --     "r8: %d, g8: %d, b8: %d, (#%06x)",
         --     r8, g8, b8, r8 << 0x10 | g8 << 0x08 | b8))
 
-        local aseColor = Color { r = r8, g = g8, b = b8, a = 255 }
+        local aseColor <const> = Color { r = r8, g = g8, b = b8, a = 255 }
         aseColors[1 + i] = aseColor
 
         if initIsV2 then
@@ -440,7 +446,7 @@ local function readAco(fileData, colorSpace, externalRef)
             -- Length of the name is in characters, which are utf16, plus
             -- a terminal zero.
             -- local spacer = strunpack(">I2", strsub(fileData, j + 10, j + 11))
-            local lenName = strunpack(">I2", strsub(fileData, j + 12, j + 13))
+            local lenName <const> = strunpack(">I2", strsub(fileData, j + 12, j + 13))
             -- print(string.format("spacer: 0x%02X", spacer))
             -- print(string.format("lenName: %d (0x%02X)", lenName, lenName))
             blockLen = 10
@@ -458,20 +464,20 @@ end
 ---@param fileData string
 ---@return Color[]
 local function readAct(fileData)
-    local lenFileData = #fileData
-    local is772 = lenFileData == 772
+    local lenFileData <const> = #fileData
+    local is772 <const> = lenFileData == 772
     local numColors = 256
     local alphaIndex = -1
     if is772 then
         -- Neither GIMP nor Krita supports 772, so this was tested with
         -- palettes from https://fornaxvoid.com/colorpalettes/ .
-        local ncParsed = string.unpack(">I2", string.sub(fileData, 769, 770))
+        local ncParsed <const> = string.unpack(">I2", string.sub(fileData, 769, 770))
         numColors = math.min(ncParsed, 256)
         -- print(string.format(
         --     "ncParsed: %d, numColors: %d",
         --     ncParsed, numColors))
 
-        local aiParsed = string.unpack(">I2", string.sub(fileData, 771, 772))
+        local aiParsed <const> = string.unpack(">I2", string.sub(fileData, 771, 772))
         if aiParsed > 0 and aiParsed < numColors then
             alphaIndex = aiParsed
         end
@@ -480,19 +486,19 @@ local function readAct(fileData)
         --     aiParsed, alphaIndex))
     end
 
-    local strbyte = string.byte
+    local strbyte <const> = string.byte
 
     ---@type table<integer, integer>
-    local hexDict = {}
+    local hexDict <const> = {}
     local uniqueCount = 0
     local i = 0
     local j = 0
     while i < numColors do
         if i ~= alphaIndex then
-            local r = strbyte(fileData, 1 + j)
-            local g = strbyte(fileData, 2 + j)
-            local b = strbyte(fileData, 3 + j)
-            local hex = 0xff000000 | b << 0x10 | g << 0x08 | r
+            local r <const> = strbyte(fileData, 1 + j)
+            local g <const> = strbyte(fileData, 2 + j)
+            local b <const> = strbyte(fileData, 3 + j)
+            local hex <const> = 0xff000000 | b << 0x10 | g << 0x08 | r
             if not hexDict[hex] then
                 uniqueCount = uniqueCount + 1
                 hexDict[hex] = uniqueCount
@@ -503,11 +509,11 @@ local function readAct(fileData)
     end
 
     ---@type Color[]
-    local aseColors = {}
+    local aseColors <const> = {}
     for hex, idx in pairs(hexDict) do
-        local r8 = hex & 0xff
-        local g8 = hex >> 0x08 & 0xff
-        local b8 = hex >> 0x10 & 0xff
+        local r8 <const> = hex & 0xff
+        local g8 <const> = hex >> 0x08 & 0xff
+        local b8 <const> = hex >> 0x10 & 0xff
         aseColors[idx] = Color { r = r8, g = g8, b = b8, a = 255 }
     end
 
@@ -523,23 +529,23 @@ end
 ---@return Color[]
 local function readAse(fileData, colorSpace, externalRef)
     ---@type Color[]
-    local aseColors = { Color { r = 0, g = 0, b = 0, a = 0 } }
+    local aseColors <const> = { Color { r = 0, g = 0, b = 0, a = 0 } }
 
-    local strlower = string.lower
-    local strsub = string.sub
-    local strunpack = string.unpack
-    local floor = math.floor
-    local max = math.max
-    local min = math.min
+    local strlower <const> = string.lower
+    local strsub <const> = string.sub
+    local strunpack <const> = string.unpack
+    local floor <const> = math.floor
+    local max <const> = math.max
+    local min <const> = math.min
 
-    local lScalar = 100.0
     local isGimp = externalRef == "GIMP"
     local isKrita = externalRef == "KRITA"
+    local lScalar = 100.0
     if isGimp then lScalar = 1.0 end
     if isKrita then lScalar = 100.0 end
 
-    local lenFileData = #fileData
-    local isAdobe = colorSpace == "ADOBE_RGB"
+    local lenFileData <const> = #fileData
+    local isAdobe <const> = colorSpace == "ADOBE_RGB"
     local groupNesting = 0
 
     -- Ignore version block (0010) in chars 5, 6, 7, 8.
@@ -549,9 +555,9 @@ local function readAse(fileData, colorSpace, externalRef)
     local i = 13
     while i < lenFileData do
         local blockLen = 2
-        local blockHeader = strunpack(">i2", strsub(fileData, i, i + 1))
-        local isGroup = blockHeader == 0xc001
-        local isEntry = blockHeader == 0x0001
+        local blockHeader <const> = strunpack(">i2", strsub(fileData, i, i + 1))
+        local isGroup <const> = blockHeader == 0xc001
+        local isEntry <const> = blockHeader == 0x0001
         if isGroup or isEntry then
             --Excludes header start.
             blockLen = strunpack(">i4", strsub(fileData, i + 2, i + 5))
@@ -563,7 +569,7 @@ local function readAse(fileData, colorSpace, externalRef)
             --
             -- Ase files downloaded from Lospec use their lower-case 6 digit
             -- hexadecimal value as a name, e.g., "aabbcc".
-            local lenChars16 = strunpack(">i2", strsub(fileData, i + 6, i + 7))
+            local lenChars16 <const> = strunpack(">i2", strsub(fileData, i + 6, i + 7))
             -- print("lenChars16: " .. lenChars16)
 
             -- local nameChars = {}
@@ -587,17 +593,17 @@ local function readAse(fileData, colorSpace, externalRef)
             if isEntry then
                 -- print("Color block.")
 
-                local iOffset = lenChars16 * 2 + i
+                local iOffset <const> = lenChars16 * 2 + i
 
                 -- Color formats do not need to be unpacked, since they are
                 -- human readable strings.
-                local colorFormat = strlower(strsub(fileData, iOffset + 8, iOffset + 11))
+                local colorFormat <const> = strlower(strsub(fileData, iOffset + 8, iOffset + 11))
                 if colorFormat == "rgb " then
                     -- print("RGB color space.")
 
-                    local r01 = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
-                    local g01 = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
-                    local b01 = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
+                    local r01 <const> = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
+                    local g01 <const> = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
+                    local b01 <const> = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
                     -- print(strfmt("%.6f, %.6f, %.6f", r01, g01, b01))
 
                     aseColors[#aseColors + 1] = Color {
@@ -609,10 +615,10 @@ local function readAse(fileData, colorSpace, externalRef)
                 elseif colorFormat == "cmyk" then
                     -- print("CMYK color space")
 
-                    local c = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
-                    local m = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
-                    local y = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
-                    local k = strunpack(">f", strsub(fileData, iOffset + 24, iOffset + 27))
+                    local c <const> = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
+                    local m <const> = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
+                    local y <const> = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
+                    local k <const> = strunpack(">f", strsub(fileData, iOffset + 24, iOffset + 27))
 
                     local r01, g01, b01 = cmykToRgb(c, m, y, k)
                     if isGimp then
@@ -632,11 +638,11 @@ local function readAse(fileData, colorSpace, externalRef)
                 elseif colorFormat == "lab " then
                     -- print("Lab color space")
 
-                    local l = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
-                    local a = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
-                    local b = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
+                    local l <const> = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
+                    local a <const> = strunpack(">f", strsub(fileData, iOffset + 16, iOffset + 19))
+                    local b <const> = strunpack(">f", strsub(fileData, iOffset + 20, iOffset + 23))
 
-                    local x, y, z = cieLabToCieXyz(l * lScalar, a, b)
+                    local x <const>, y <const>, z <const> = cieLabToCieXyz(l * lScalar, a, b)
 
                     local r01Linear = 0.0
                     local g01Linear = 0.0
@@ -663,8 +669,8 @@ local function readAse(fileData, colorSpace, externalRef)
                 elseif colorFormat == "gray" then
                     -- print("Gray color space")
 
-                    local v01 = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
-                    local v8 = floor(min(max(v01, 0.0), 1.0) * 255.0 + 0.5)
+                    local v01 <const> = strunpack(">f", strsub(fileData, iOffset + 12, iOffset + 15))
+                    local v8 <const> = floor(min(max(v01, 0.0), 1.0) * 255.0 + 0.5)
                     aseColors[#aseColors + 1] = Color { r = v8, g = v8, b = v8, a = 255 }
                 end
             else
@@ -699,9 +705,9 @@ local function rgbToCmyk(r01, g01, b01, gray)
     local c = 0.0
     local m = 0.0
     local y = 0.0
-    local k = 1.0 - gray
+    local k <const> = 1.0 - gray
     if k ~= 1.0 then
-        local scalar = 1.0 / (1.0 - k)
+        local scalar <const> = 1.0 / (1.0 - k)
         c = (1.0 - r01 - k) * scalar
         m = (1.0 - g01 - k) * scalar
         y = (1.0 - b01 - k) * scalar
@@ -716,14 +722,14 @@ end
 ---@return number s
 ---@return number v
 local function rgbToHsv(r01, g01, b01)
-    local gbmx = math.max(g01, b01)
-    local gbmn = math.min(g01, b01)
-    local mx = math.max(r01, gbmx)
+    local gbmx <const> = math.max(g01, b01)
+    local gbmn <const> = math.min(g01, b01)
+    local mx <const> = math.max(r01, gbmx)
     if mx < 0.00392156862745098 then
         return 0.0, 0.0, 0.0
     end
-    local mn = math.min(r01, gbmn)
-    local diff = mx - mn
+    local mn <const> = math.min(r01, gbmn)
+    local diff <const> = mx - mn
     if diff < 0.00392156862745098 then
         local light = (mx + mn) * 0.5
         if light > 0.996078431372549 then
@@ -748,17 +754,17 @@ end
 ---@return string
 local function writeAct(palette)
     ---@type table<integer, integer>
-    local hexDict = {}
+    local hexDict <const> = {}
     local uniqueCount = 0
-    local lenPalette = #palette
+    local lenPalette <const> = #palette
     local h = 0
     while h < lenPalette do
-        local aseColor = palette:getColor(h)
+        local aseColor <const> = palette:getColor(h)
         if aseColor.alpha > 0 then
-            local r8 = aseColor.red
-            local g8 = aseColor.green
-            local b8 = aseColor.blue
-            local hex = 0xff000000 | b8 << 0x10 | g8 << 0x08 | r8
+            local r8 <const> = aseColor.red
+            local g8 <const> = aseColor.green
+            local b8 <const> = aseColor.blue
+            local hex <const> = 0xff000000 | b8 << 0x10 | g8 << 0x08 | r8
             if uniqueCount < 256 and (not hexDict[hex]) then
                 hexDict[hex] = uniqueCount
                 uniqueCount = uniqueCount + 1
@@ -768,19 +774,19 @@ local function writeAct(palette)
     end
 
     ---@type string[]
-    local binWords = {}
-    local strchar = string.char
+    local binWords <const> = {}
+    local strchar <const> = string.char
     for hex, idx in pairs(hexDict) do
-        local r8 = hex & 0xff
-        local g8 = hex >> 0x08 & 0xff
-        local b8 = hex >> 0x10 & 0xff
-        local j = idx * 3
+        local r8 <const> = hex & 0xff
+        local g8 <const> = hex >> 0x08 & 0xff
+        local b8 <const> = hex >> 0x10 & 0xff
+        local j <const> = idx * 3
         binWords[1 + j] = strchar(r8)
         binWords[2 + j] = strchar(g8)
         binWords[3 + j] = strchar(b8)
     end
 
-    local char0 = strchar(0)
+    local char0 <const> = strchar(0)
     while #binWords < 768 do binWords[#binWords + 1] = char0 end
     return table.concat(binWords, "")
 end
@@ -798,41 +804,41 @@ local function writeAco(
     grayMethod,
     externalRef)
     -- Cache commonly used methods.
-    local strbyte = string.byte
-    local strfmt = string.format
-    local strpack = string.pack
-    local tconcat = table.concat
-    local tinsert = table.insert
-    local floor = math.floor
-    local max = math.max
-    local min = math.min
+    local strbyte <const> = string.byte
+    local strfmt <const> = string.format
+    local strpack <const> = string.pack
+    local tconcat <const> = table.concat
+    local tinsert <const> = table.insert
+    local floor <const> = math.floor
+    local max <const> = math.max
+    local min <const> = math.min
 
-    local lenPalette = #palette
+    local lenPalette <const> = #palette
 
     ---@type string[]
-    local binWords = {}
+    local binWords <const> = {}
     local numColors = 0
 
-    local writeLab = colorFormat == "LAB"
-    local writeGry = colorFormat == "GRAY"
-    local writeCmyk = colorFormat == "CMYK"
-    local writeHsb = colorFormat == "HSB"
-    local calcLinear = writeLab or writeGry or writeCmyk
+    local writeLab <const> = colorFormat == "LAB"
+    local writeGry <const> = colorFormat == "GRAY"
+    local writeCmyk <const> = colorFormat == "CMYK"
+    local writeHsb <const> = colorFormat == "HSB"
+    local calcLinear <const> = writeLab or writeGry or writeCmyk
 
-    local isAdobe = colorSpace == "ADOBE_RGB"
-    local isKrita = externalRef == "KRITA"
+    local isAdobe <const> = colorSpace == "ADOBE_RGB"
+    local isKrita <const> = externalRef == "KRITA"
 
     -- Krita and GIMP treat gray differently
     local exponent = 1.0
     if isKrita then exponent = 2.2 end
 
-    local isGryHsv = grayMethod == "HSV"
-    local isGryHsi = grayMethod == "HSI"
-    local isGryHsl = grayMethod == "HSL"
-    local isGryLuma = grayMethod == "LUMA"
-    local isGryAdobeY = isAdobe and isGryLuma
+    local isGryHsv <const> = grayMethod == "HSV"
+    local isGryHsi <const> = grayMethod == "HSI"
+    local isGryHsl <const> = grayMethod == "HSL"
+    local isGryLuma <const> = grayMethod == "LUMA"
+    local isGryAdobeY <const> = isAdobe and isGryLuma
 
-    local pkZero = strpack(">I2", 0)
+    local pkZero <const> = strpack(">I2", 0)
     local pkColorFormat = strpack(">I2", 0)
     if writeGry then
         pkColorFormat = strpack(">I2", 8)
@@ -846,16 +852,16 @@ local function writeAco(
 
     local i = 0
     while i < lenPalette do
-        local aseColor = palette:getColor(i)
+        local aseColor <const> = palette:getColor(i)
         if aseColor.alpha > 0 then
             -- Unpack color.
-            local r8 = aseColor.red
-            local g8 = aseColor.green
-            local b8 = aseColor.blue
+            local r8 <const> = aseColor.red
+            local g8 <const> = aseColor.green
+            local b8 <const> = aseColor.blue
 
-            local r01Gamma = r8 / 255.0
-            local g01Gamma = g8 / 255.0
-            local b01Gamma = b8 / 255.0
+            local r01Gamma <const> = r8 / 255.0
+            local g01Gamma <const> = g8 / 255.0
+            local b01Gamma <const> = b8 / 255.0
 
             local pkw = pkZero
             local pkx = pkZero
@@ -894,24 +900,24 @@ local function writeAco(
                     end
 
                     -- Krita treats this as being in linear space.
-                    local gray16 = floor((gray ^ exponent) * 10000.0 + 0.5)
+                    local gray16 <const> = floor((gray ^ exponent) * 10000.0 + 0.5)
                     pkw = strpack(">I2", gray16)
                 elseif writeCmyk then
-                    local gray = grayMethodHsv(r01Gamma, g01Gamma, b01Gamma)
-                    local c, m, y, k = rgbToCmyk(r01Gamma, g01Gamma, b01Gamma, gray)
+                    local gray <const> = grayMethodHsv(r01Gamma, g01Gamma, b01Gamma)
+                    local c <const>, m <const>, y <const>, k <const> = rgbToCmyk(r01Gamma, g01Gamma, b01Gamma, gray)
 
                     -- Ink is inverted.
-                    local c16 = floor((1.0 - c) * 65535.0 + 0.5)
-                    local m16 = floor((1.0 - m) * 65535.0 + 0.5)
-                    local y16 = floor((1.0 - y) * 65535.0 + 0.5)
-                    local k16 = floor((1.0 - k) * 65535.0 + 0.5)
+                    local c16 <const> = floor((1.0 - c) * 65535.0 + 0.5)
+                    local m16 <const> = floor((1.0 - m) * 65535.0 + 0.5)
+                    local y16 <const> = floor((1.0 - y) * 65535.0 + 0.5)
+                    local k16 <const> = floor((1.0 - k) * 65535.0 + 0.5)
 
                     pkw = strpack(">I2", c16)
                     pkx = strpack(">I2", m16)
                     pky = strpack(">I2", y16)
                     pkz = strpack(">I2", k16)
                 elseif writeLab then
-                    local l, a, b = cieXyzToCieLab(xCie, yCie, zCie)
+                    local l <const>, a <const>, b <const> = cieXyzToCieLab(xCie, yCie, zCie)
 
                     -- Krita's interpretation of Lab format differs from the
                     -- file format specification:
@@ -945,26 +951,26 @@ local function writeAco(
                     end
                 end
             elseif writeHsb then
-                local h01, s01, v01 = rgbToHsv(r01Gamma, g01Gamma, b01Gamma)
+                local h01 <const>, s01 <const>, v01 <const> = rgbToHsv(r01Gamma, g01Gamma, b01Gamma)
 
-                local h16 = floor(h01 * 65535.0 + 0.5)
-                local s16 = floor(s01 * 65535.0 + 0.5)
-                local v16 = floor(v01 * 65535.0 + 0.5)
+                local h16 <const> = floor(h01 * 65535.0 + 0.5)
+                local s16 <const> = floor(s01 * 65535.0 + 0.5)
+                local v16 <const> = floor(v01 * 65535.0 + 0.5)
 
                 pkw = strpack(">I2", h16)
                 pkx = strpack(">I2", s16)
                 pky = strpack(">I2", v16)
             else
-                local r16 = floor(r01Gamma * 65535.0 + 0.5)
-                local g16 = floor(g01Gamma * 65535.0 + 0.5)
-                local b16 = floor(b01Gamma * 65535.0 + 0.5)
+                local r16 <const> = floor(r01Gamma * 65535.0 + 0.5)
+                local g16 <const> = floor(g01Gamma * 65535.0 + 0.5)
+                local b16 <const> = floor(b01Gamma * 65535.0 + 0.5)
 
                 pkw = strpack(">I2", r16)
                 pkx = strpack(">I2", g16)
                 pky = strpack(">I2", b16)
             end
 
-            local n5 = numColors * 5
+            local n5 <const> = numColors * 5
             numColors = numColors + 1
 
             binWords[1 + n5] = pkColorFormat
@@ -977,8 +983,8 @@ local function writeAco(
         i = i + 1
     end
 
-    local pkNumColors = strpack(">I2", numColors)
-    local pkVersion = strpack(">I2", 0x0001)
+    local pkNumColors <const> = strpack(">I2", numColors)
+    local pkVersion <const> = strpack(">I2", 0x0001)
     tinsert(binWords, 1, pkNumColors)
     tinsert(binWords, 1, pkVersion)
     return tconcat(binWords, "")
@@ -997,34 +1003,34 @@ local function writeAse(
     grayMethod,
     externalRef)
     -- Cache commonly used methods.
-    local strbyte = string.byte
-    local strfmt = string.format
-    local strpack = string.pack
-    local tconcat = table.concat
-    local tinsert = table.insert
+    local strbyte <const> = string.byte
+    local strfmt <const> = string.format
+    local strpack <const> = string.pack
+    local tconcat <const> = table.concat
+    local tinsert <const> = table.insert
 
-    local lenPalette = #palette
+    local lenPalette <const> = #palette
 
     ---@type string[]
-    local binWords = {}
+    local binWords <const> = {}
     local numColors = 0
 
-    local writeLab = colorFormat == "LAB"
-    local writeGry = colorFormat == "GRAY"
-    local writeCmyk = colorFormat == "CMYK"
-    local calcLinear = writeLab or writeGry or writeCmyk
+    local writeLab <const> = colorFormat == "LAB"
+    local writeGry <const> = colorFormat == "GRAY"
+    local writeCmyk <const> = colorFormat == "CMYK"
+    local calcLinear <const> = writeLab or writeGry or writeCmyk
 
-    local isAdobe = colorSpace == "ADOBE_RGB"
+    local isAdobe <const> = colorSpace == "ADOBE_RGB"
 
-    local isGryHsv = grayMethod == "HSV"
-    local isGryHsi = grayMethod == "HSI"
-    local isGryHsl = grayMethod == "HSL"
-    local isGryLuma = grayMethod == "LUMA"
-    local isGryAdobeY = isAdobe and isGryLuma
+    local isGryHsv <const> = grayMethod == "HSV"
+    local isGryHsi <const> = grayMethod == "HSI"
+    local isGryHsl <const> = grayMethod == "HSL"
+    local isGryLuma <const> = grayMethod == "LUMA"
+    local isGryAdobeY <const> = isAdobe and isGryLuma
 
     local lScalar = 0.01
-    local isGimp = externalRef == "GIMP"
-    local isKrita = externalRef == "KRITA"
+    local isGimp <const> = externalRef == "GIMP"
+    local isKrita <const> = externalRef == "KRITA"
     if isGimp then lScalar = 1.0 end
     if isKrita then lScalar = 0.01 end
 
@@ -1041,25 +1047,25 @@ local function writeAse(
         pkColorFormat = strpack(">i4", 0x434D594B) -- "CMYK"
     end
 
-    local pkEntryHeader = strpack(">i2", 0x0001)
-    local pkNormalColorMode = strpack(">i2", 0x0002) -- global|spot|normal
-    local pkLenChars16 = strpack(">i2", 7)           -- eg., "aabbcc" & 0
-    local pkStrTerminus = strpack(">i2", 0)
+    local pkEntryHeader <const> = strpack(">i2", 0x0001)
+    local pkNormalColorMode <const> = strpack(">i2", 0x0002) -- global|spot|normal
+    local pkLenChars16 <const> = strpack(">i2", 7)           -- eg., "aabbcc" & 0
+    local pkStrTerminus <const> = strpack(">i2", 0)
 
     local i = 0
     while i < lenPalette do
-        local aseColor = palette:getColor(i)
+        local aseColor <const> = palette:getColor(i)
         if aseColor.alpha > 0 then
             numColors = numColors + 1
 
             -- Unpack color.
-            local r8 = aseColor.red
-            local g8 = aseColor.green
-            local b8 = aseColor.blue
+            local r8 <const> = aseColor.red
+            local g8 <const> = aseColor.green
+            local b8 <const> = aseColor.blue
 
             -- Write name.
-            local hex24 = r8 << 0x10 | g8 << 0x08 | b8
-            local nameStr8 = strfmt("%06x", hex24)
+            local hex24 <const> = r8 << 0x10 | g8 << 0x08 | b8
+            local nameStr8 <const> = strfmt("%06x", hex24)
 
             -- Write color block header.
             binWords[#binWords + 1] = pkEntryHeader
@@ -1070,17 +1076,17 @@ local function writeAse(
             local j = 0
             while j < 6 do
                 j = j + 1
-                local int8 = strbyte(nameStr8, j, j + 1)
-                local int16 = strpack(">i2", int8)
+                local int8 <const> = strbyte(nameStr8, j, j + 1)
+                local int16 <const> = strpack(">i2", int8)
                 binWords[#binWords + 1] = int16
             end
             binWords[#binWords + 1] = pkStrTerminus -- 16
 
             binWords[#binWords + 1] = pkColorFormat -- 20
 
-            local r01Gamma = r8 / 255.0
-            local g01Gamma = g8 / 255.0
-            local b01Gamma = b8 / 255.0
+            local r01Gamma <const> = r8 / 255.0
+            local g01Gamma <const> = g8 / 255.0
+            local b01Gamma <const> = b8 / 255.0
 
             -- Default to standard RGB.
             local pkx = strpack(">f", r01Gamma)
@@ -1144,7 +1150,7 @@ local function writeAse(
                     binWords[#binWords + 1] = pkz -- 32
                     binWords[#binWords + 1] = pkw -- 36
                 elseif writeLab then
-                    local l, a, b = cieXyzToCieLab(xCie, yCie, zCie)
+                    local l <const>, a <const>, b <const> = cieXyzToCieLab(xCie, yCie, zCie)
 
                     pkx = strpack(">f", l * lScalar)
                     pky = strpack(">f", a)
@@ -1166,9 +1172,9 @@ local function writeAse(
         i = i + 1
     end
 
-    local pkNumColors = strpack(">i4", numColors)
-    local pkVersion = strpack(">i4", 0x00010000)   -- 1.00
-    local pkSignature = strpack(">i4", 0x41534546) -- "ASEF"
+    local pkNumColors <const> = strpack(">i4", numColors)
+    local pkVersion <const> = strpack(">i4", 0x00010000)   -- 1.00
+    local pkSignature <const> = strpack(">i4", 0x41534546) -- "ASEF"
 
     tinsert(binWords, 1, pkNumColors)
     tinsert(binWords, 1, pkVersion)
@@ -1176,7 +1182,7 @@ local function writeAse(
     return tconcat(binWords, "")
 end
 
-local dlg = Dialog { title = "ASE Palette IO" }
+local dlg <const> = Dialog { title = "ASE Palette IO" }
 
 dlg:combobox {
     id = "colorFormat",
@@ -1185,15 +1191,15 @@ dlg:combobox {
     options = colorFormats,
     focus = false,
     onchange = function()
-        local args = dlg.data
+        local args <const> = dlg.data
 
-        local cf = args.colorFormat --[[@as string]]
-        local isGray = cf == "GRAY"
-        local isLab = cf == "LAB"
-        local isCmyk = cf == "CMYK"
+        local cf <const> = args.colorFormat --[[@as string]]
+        local isGray <const> = cf == "GRAY"
+        local isLab <const> = cf == "LAB"
+        local isCmyk <const> = cf == "CMYK"
 
-        local gm = args.grayMethod --[[@as string]]
-        local isLuma = gm == "LUMA"
+        local gm <const> = args.grayMethod --[[@as string]]
+        local isLuma <const> = gm == "LUMA"
 
         dlg:modify { id = "grayMethod", visible = isGray }
         dlg:modify { id = "colorSpace", visible = isLab or isCmyk
@@ -1212,12 +1218,12 @@ dlg:combobox {
     focus = false,
     visible = defaults.colorSpace == "GRAY",
     onchange = function()
-        local args = dlg.data
-        local cf = args.colorFormat --[[@as string]]
-        local gm = args.grayMethod --[[@as string]]
-        local isGray = cf == "GRAY"
-        local isLab = cf == "LAB"
-        local isLuma = gm == "LUMA"
+        local args <const> = dlg.data
+        local cf <const> = args.colorFormat --[[@as string]]
+        local gm <const> = args.grayMethod --[[@as string]]
+        local isGray <const> = cf == "GRAY"
+        local isLab <const> = cf == "LAB"
+        local isLuma <const> = gm == "LUMA"
         dlg:modify { id = "colorSpace", visible = isLab or (isGray and isLuma) }
     end
 }
@@ -1265,8 +1271,8 @@ dlg:button {
     text = "&IMPORT",
     focus = false,
     onclick = function()
-        local args = dlg.data
-        local importFilepath = args.importFilepath --[[@as string]]
+        local args <const> = dlg.data
+        local importFilepath <const> = args.importFilepath --[[@as string]]
 
         if (not importFilepath) or (#importFilepath < 1)
             or (not app.fs.isFile(importFilepath)) then
@@ -1277,7 +1283,7 @@ dlg:button {
             return
         end
 
-        local fileExt = string.lower(app.fs.fileExtension(importFilepath))
+        local fileExt <const> = string.lower(app.fs.fileExtension(importFilepath))
         if fileExt ~= "ase" and fileExt ~= "aco" and fileExt ~= "act" then
             app.alert {
                 title = "Error",
@@ -1286,7 +1292,7 @@ dlg:button {
             return
         end
 
-        local binFile, err = io.open(importFilepath, "rb")
+        local binFile <const>, err <const> = io.open(importFilepath, "rb")
         if err ~= nil then
             if binFile then binFile:close() end
             app.alert { title = "Error", text = err }
@@ -1295,7 +1301,7 @@ dlg:button {
         if binFile == nil then return end
 
         -- Preserve fore- and background colors.
-        local fgc = app.fgColor
+        local fgc <const> = app.fgColor
         app.fgColor = Color {
             r = fgc.red,
             g = fgc.green,
@@ -1304,7 +1310,7 @@ dlg:button {
         }
 
         app.command.SwitchColors()
-        local bgc = app.fgColor
+        local bgc <const> = app.fgColor
         app.fgColor = Color {
             r = bgc.red,
             g = bgc.green,
@@ -1318,28 +1324,27 @@ dlg:button {
         -- n indicates the number of bytes, where 2 is a 16-bit short and
         -- 4 is a 32-bit integer.
         -- 'f' is a float real number.
-        local fileData = binFile:read("a")
+        local fileData <const> = binFile:read("a")
         binFile:close()
-        local asefHeader = string.sub(fileData, 1, 4)
-        local isAsef = asefHeader == "ASEF"
+        local asefHeader <const> = string.sub(fileData, 1, 4)
+        local isAsef <const> = asefHeader == "ASEF"
         -- print(strfmt("asefHeader: 0x%08x", asefHeader))
         -- print(isAsef)
 
         if (not isAsef) and fileExt == "ase" then
             -- https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#header
-            local asepriteHeader = string.unpack("I2", string.sub(fileData, 5, 6))
+            local asepriteHeader <const> = string.unpack("I2", string.sub(fileData, 5, 6))
             -- print(strfmt("asepriteHeader: %04x", asepriteHeader))
 
             if asepriteHeader == 0xa5e0 then
                 if #app.sprites <= 0 then
                     Sprite { fromFile = importFilepath }
                 else
-                    ---@diagnostic disable-next-line: deprecated
-                    local activeSprite = app.activeSprite
+                    local activeSprite <const> = app.sprite
                     if activeSprite then
-                        local palette = Palette { fromFile = importFilepath }
+                        local palette <const> = Palette { fromFile = importFilepath }
                         if palette then
-                            local oldColorMode = activeSprite.colorMode
+                            local oldColorMode <const> = activeSprite.colorMode
                             if oldColorMode == ColorMode.INDEXED then
                                 app.command.ChangePixelFormat { format = "rgb" }
                             end
@@ -1358,9 +1363,9 @@ dlg:button {
         end
 
         -- Handle different color spaces.
-        local colorSpace = args.colorSpace
+        local colorSpace <const> = args.colorSpace
             or defaults.colorSpace --[[@as string]]
-        local externalRef = args.externalRef
+        local externalRef <const> = args.externalRef
             or defaults.externalRef --[[@as string]]
 
         ---@type Color[]s
@@ -1373,14 +1378,13 @@ dlg:button {
             aseColors = readAse(fileData, colorSpace, externalRef)
         end
 
-        ---@diagnostic disable-next-line: deprecated
-        local activeSprite = app.activeSprite
+        local activeSprite = app.sprite
         if not activeSprite then
             local lenColors <const> = #aseColors
             local rtLen <const> = math.max(8,
                 math.ceil(math.sqrt(math.max(1, lenColors))))
 
-            local spec = ImageSpec {
+            local spec <const> = ImageSpec {
                 width = rtLen,
                 height = rtLen,
                 colorMode = ColorMode.RGB,
@@ -1388,13 +1392,13 @@ dlg:button {
             }
             spec.colorSpace = ColorSpace { sRGB = true }
 
-            local image = Image(spec)
-            local pxItr = image:pixels()
+            local image <const> = Image(spec)
+            local pxItr <const> = image:pixels()
             local index = 0
             for pixel in pxItr do
                 if index < lenColors then
                     index = index + 1
-                    local aseColor = aseColors[index]
+                    local aseColor <const> = aseColors[index]
                     pixel(aseColor.rgbaPixel)
                 end
             end
@@ -1404,23 +1408,22 @@ dlg:button {
             activeSprite.cels[1].image = image
         end
 
-        local oldColorMode = activeSprite.colorMode
+        local oldColorMode <const> = activeSprite.colorMode
         if oldColorMode == ColorMode.INDEXED then
             app.command.ChangePixelFormat { format = "rgb" }
         end
 
-        ---@diagnostic disable-next-line: deprecated
-        local activeFrame = app.activeFrame or activeSprite.frames[1]
-        local frIdx = activeFrame.frameNumber
+        local activeFrame <const> = app.frame or activeSprite.frames[1]
+        local frIdx <const> = activeFrame.frameNumber
 
         -- In rare cases, e.g., a sprite opened from a sequence of indexed
         -- color mode files, there may be multiple palettes in the sprite.
-        local palettes = activeSprite.palettes
         local paletteIdx = frIdx
-        local lenPalettes = #palettes
+        local palettes <const> = activeSprite.palettes
+        local lenPalettes <const> = #palettes
         if paletteIdx > lenPalettes then paletteIdx = 1 end
-        local palette = palettes[paletteIdx]
-        local lenAseColors = #aseColors
+        local palette <const> = palettes[paletteIdx]
+        local lenAseColors <const> = #aseColors
 
         app.transaction(function()
             palette:resize(lenAseColors)
@@ -1453,11 +1456,10 @@ dlg:newrow { always = false }
 
 dlg:button {
     id = "exportButton",
-    text = "&EXPORT",
+    text = "E&XPORT",
     focus = false,
     onclick = function()
-        ---@diagnostic disable-next-line: deprecated
-        local activeSprite = app.activeSprite
+        local activeSprite <const> = app.sprite
         if not activeSprite then
             app.alert {
                 title = "Error",
@@ -1467,15 +1469,15 @@ dlg:button {
         end
 
         -- Unpack arguments.
-        local args = dlg.data
-        local exportFilepath = args.exportFilepath --[[@as string]]
-        local colorFormat = args.colorFormat
+        local args <const> = dlg.data
+        local exportFilepath <const> = args.exportFilepath --[[@as string]]
+        local colorFormat <const> = args.colorFormat
             or defaults.colorFormat --[[@as string]]
-        local colorSpace = args.colorSpace
+        local colorSpace <const> = args.colorSpace
             or defaults.colorSpace --[[@as string]]
-        local grayMethod = args.grayMethod
+        local grayMethod <const> = args.grayMethod
             or defaults.grayMethod --[[@as string]]
-        local externalRef = args.externalRef
+        local externalRef <const> = args.externalRef
             or defaults.externalRef --[[@as string]]
 
         if (not exportFilepath) or (#exportFilepath < 1) then
@@ -1486,7 +1488,7 @@ dlg:button {
             return
         end
 
-        local fileExt = string.lower(app.fs.fileExtension(exportFilepath))
+        local fileExt <const> = string.lower(app.fs.fileExtension(exportFilepath))
         if fileExt ~= "ase" and fileExt ~= "aco" and fileExt ~= "act" then
             app.alert {
                 title = "Error",
@@ -1495,7 +1497,7 @@ dlg:button {
             return
         end
 
-        local binFile, err = io.open(exportFilepath, "wb")
+        local binFile <const>, err <const> = io.open(exportFilepath, "wb")
         if err ~= nil then
             if binFile then binFile:close() end
             app.alert { title = "Error", text = err }
@@ -1503,17 +1505,16 @@ dlg:button {
         end
         if binFile == nil then return end
 
-        ---@diagnostic disable-next-line: deprecated
-        local activeFrame = app.activeFrame or activeSprite.frames[1]
-        local frIdx = activeFrame.frameNumber
+        local activeFrame <const> = app.frame or activeSprite.frames[1]
+        local frIdx <const> = activeFrame.frameNumber
 
         -- In rare cases, e.g., a sprite opened from a sequence of indexed
         -- color mode files, there may be multiple palettes in the sprite.
-        local palettes = activeSprite.palettes
+        local palettes <const> = activeSprite.palettes
         local paletteIdx = frIdx
-        local lenPalettes = #palettes
+        local lenPalettes <const> = #palettes
         if paletteIdx > lenPalettes then paletteIdx = 1 end
-        local palette = palettes[paletteIdx]
+        local palette <const> = palettes[paletteIdx]
 
         local binStr = ""
         if fileExt == "aco" then
@@ -1546,4 +1547,7 @@ dlg:button {
     end
 }
 
-dlg:show { wait = false }
+dlg:show {
+    autoscrollbars = true,
+    wait = false
+}
