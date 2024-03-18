@@ -1143,7 +1143,7 @@ local function writeAse(
                     pkx = strpack(">f", c)
                     pky = strpack(">f", m)
                     pkz = strpack(">f", y)
-                    local pkw = strpack(">f", k)
+                    local pkw <const> = strpack(">f", k)
 
                     binWords[#binWords + 1] = pkx -- 24
                     binWords[#binWords + 1] = pky -- 28
@@ -1299,6 +1299,13 @@ dlg:button {
             return
         end
         if binFile == nil then return end
+
+        -- Prevent uncommitted selection transformation (drop pixels) from
+        -- raising an error.
+        app.transaction("Commit Mask", function()
+            app.command.InvertMask()
+            app.command.InvertMask()
+        end)
 
         -- Preserve fore- and background colors.
         local fgc <const> = app.fgColor
@@ -1504,6 +1511,13 @@ dlg:button {
             return
         end
         if binFile == nil then return end
+
+        -- Prevent uncommitted selection transformation (drop pixels) from
+        -- raising an error.
+        app.transaction("Commit Mask", function()
+            app.command.InvertMask()
+            app.command.InvertMask()
+        end)
 
         local activeFrame <const> = app.frame or activeSprite.frames[1]
         local frIdx <const> = activeFrame.frameNumber
