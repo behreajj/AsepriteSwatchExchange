@@ -1300,6 +1300,16 @@ dlg:button {
         end
         if binFile == nil then return end
 
+        -- As a precaution against crashes, do not allow slices UI interface
+        -- to be active.
+        local appTool <const> = app.tool
+        if appTool then
+            local toolName <const> = appTool.id
+            if toolName == "slice" then
+                app.tool = "hand"
+            end
+        end
+
         -- Prevent uncommitted selection transformation (drop pixels) from
         -- raising an error.
         app.command.InvertMask()
