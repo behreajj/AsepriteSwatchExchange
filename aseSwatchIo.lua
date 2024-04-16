@@ -1310,10 +1310,11 @@ dlg:button {
             end
         end
 
+        -- Just getting the tool above seems to work.
         -- Prevent uncommitted selection transformation (drop pixels) from
         -- raising an error.
-        app.command.InvertMask()
-        app.command.InvertMask()
+        -- app.command.InvertMask()
+        -- app.command.InvertMask()
 
         -- Preserve fore- and background colors.
         local fgc <const> = app.fgColor
