@@ -297,7 +297,7 @@ local function linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
 end
 
 ---@param fileData string
----@param colorSpace "ADOBE_SRGB"|"S_RGB"
+---@param colorSpace "ADOBE_RGB"|"S_RGB"
 ---@param externalRef "GIMP"|"KRITA"
 ---@return Color[]
 local function readAco(fileData, colorSpace, externalRef)
@@ -527,7 +527,7 @@ local function readAct(fileData)
 end
 
 ---@param fileData string
----@param colorSpace "ADOBE_SRGB"|"S_RGB"
+---@param colorSpace "ADOBE_RGB"|"S_RGB"
 ---@param externalRef "GIMP"|"KRITA"|"OTHER"
 ---@return Color[]
 local function readAse(fileData, colorSpace, externalRef)
@@ -796,7 +796,7 @@ end
 
 ---@param palette Palette
 ---@param colorFormat "CMYK"|"GRAY"|"HSB"|"LAB"|"RGB"
----@param colorSpace "ADOBE_SRGB"|"S_RGB"
+---@param colorSpace "ADOBE_RGB"|"S_RGB"
 ---@param grayMethod "HSI"|"HSL"|"HSV"|"LUMA"
 ---@param externalRef "GIMP"|"KRITA"
 ---@return string
@@ -993,7 +993,7 @@ end
 
 ---@param palette Palette
 ---@param colorFormat "CMYK"|"GRAY"|"LAB"|"RGB"
----@param colorSpace "ADOBE_SRGB"|"S_RGB"
+---@param colorSpace "ADOBE_RGB"|"S_RGB"
 ---@param grayMethod "HSI"|"HSL"|"HSV"|"LUMA"
 ---@param externalRef "GIMP"|"KRITA"|"OTHER"
 ---@return string
