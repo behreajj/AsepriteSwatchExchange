@@ -31,7 +31,7 @@
 ]]
 
 local colorFormats <const> = { "CMYK", "GRAY", "HSB", "LAB", "RGB" }
-local colorSpaces <const> = { "ADOBE_RGB", "S_RGB" }
+local colorSpaces <const> = { "ADOBE_RGB", "DISPLAY_P3", "S_RGB" }
 local externalRefs <const> = { "GIMP", "KRITA", "OTHER" }
 local fileExts <const> = { "aco", "act", "ase" }
 local grayMethods <const> = { "HSI", "HSL", "HSV", "LUMA" }
@@ -123,6 +123,18 @@ local function cieXyzToLinearAdobeRgb(x, y, z)
     return 2.04137 * x - 0.56495 * y - 0.34469 * z,
         -0.96927 * x + 1.87601 * y + 0.04156 * z,
         0.01345 * x - 0.11839 * y + 1.01541 * z
+end
+
+---@param x number
+---@param y number
+---@param z number
+---@return number r01Lnear
+---@return number g01Lnear
+---@return number b01Lnear
+local function cieXyzToLinearP3(x, y, z)
+    return 2.4934969119414 * x - 0.93138361791912 * y - 0.40271078445072 * z,
+        -0.82948896956158 * x + 1.7626640603183 * y + 0.023624685841944 * z,
+        0.035845830243784 * x - 0.076172389268042 * y + 0.95688452400769 * z
 end
 
 ---@param x number
@@ -271,6 +283,18 @@ end
 ---@return number x
 ---@return number y
 ---@return number z
+local function linearP3ToCieXyz(r01Linear, g01Linear, b01Linear)
+    return 0.4865709486482 * r01Linear + 0.26566769316909 * g01Linear + 0.19821728523436 * b01Linear,
+        0.22897456406975 * r01Linear + 0.69173852183651 * g01Linear + 0.079286914093745 * b01Linear,
+        0.0 * r01Linear + 0.045113381858903 * g01Linear + 1.043944368901 * b01Linear
+end
+
+---@param r01Linear number
+---@param g01Linear number
+---@param b01Linear number
+---@return number x
+---@return number y
+---@return number z
 local function linearsRgbToCieXyz(r01Linear, g01Linear, b01Linear)
     return 0.41241086 * r01Linear + 0.35758457 * g01Linear + 0.1804538 * b01Linear,
         0.21264935 * r01Linear + 0.71516913 * g01Linear + 0.07218152 * b01Linear,
@@ -297,7 +321,7 @@ local function linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
 end
 
 ---@param fileData string
----@param colorSpace "ADOBE_RGB"|"S_RGB"
+---@param colorSpace "ADOBE_RGB"|"DISPLAY_P3"|"S_RGB"
 ---@param externalRef "GIMP"|"KRITA"
 ---@return Color[]
 local function readAco(fileData, colorSpace, externalRef)
@@ -311,6 +335,7 @@ local function readAco(fileData, colorSpace, externalRef)
     local min <const> = math.min
 
     local isAdobe <const> = colorSpace == "ADOBE_RGB"
+    local isP3 <const> = colorSpace == "DISPLAY_P3"
     local isKrita <const> = externalRef == "KRITA"
     local exponent = 1.0
     if isKrita then exponent = 1.0 / 2.2 end
@@ -396,6 +421,9 @@ local function readAco(fileData, colorSpace, externalRef)
             if isAdobe then
                 r01Linear, g01Linear, b01Linear = cieXyzToLinearAdobeRgb(x, y, z)
                 r01, g01, b01 = linearAdobeRgbToGammaAdobeRgb(r01Linear, g01Linear, b01Linear)
+            elseif isP3 then
+                r01Linear, g01Linear, b01Linear = cieXyzToLinearP3(x, y, z)
+                r01, g01, b01 = linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
             else
                 r01Linear, g01Linear, b01Linear = cieXyzToLinearsRgb(x, y, z)
                 r01, g01, b01 = linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
@@ -527,7 +555,7 @@ local function readAct(fileData)
 end
 
 ---@param fileData string
----@param colorSpace "ADOBE_RGB"|"S_RGB"
+---@param colorSpace "ADOBE_RGB"|"DISPLAY_P3"|"S_RGB"
 ---@param externalRef "GIMP"|"KRITA"|"OTHER"
 ---@return Color[]
 local function readAse(fileData, colorSpace, externalRef)
@@ -549,6 +577,7 @@ local function readAse(fileData, colorSpace, externalRef)
 
     local lenFileData <const> = #fileData
     local isAdobe <const> = colorSpace == "ADOBE_RGB"
+    local isP3 <const> = colorSpace == "DISPLAY_P3"
     local groupNesting = 0
 
     -- Ignore version block (0010) in chars 5, 6, 7, 8.
@@ -627,6 +656,8 @@ local function readAse(fileData, colorSpace, externalRef)
                     if isGimp then
                         if isAdobe then
                             r01, g01, b01 = linearAdobeRgbToGammaAdobeRgb(r01, g01, b01)
+                        elseif isP3 then
+                            r01, g01, b01 = linearsRgbToGammasRgb(r01, g01, b01)
                         else
                             r01, g01, b01 = linearsRgbToGammasRgb(r01, g01, b01)
                         end
@@ -658,6 +689,9 @@ local function readAse(fileData, colorSpace, externalRef)
                     if isAdobe then
                         r01Linear, g01Linear, b01Linear = cieXyzToLinearAdobeRgb(x, y, z)
                         r01Gamma, g01Gamma, b01Gamma = linearAdobeRgbToGammaAdobeRgb(r01Linear, g01Linear, b01Linear)
+                    elseif isP3 then
+                        r01Linear, g01Linear, b01Linear = cieXyzToLinearP3(x, y, z)
+                        r01Gamma, g01Gamma, b01Gamma = linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
                     else
                         r01Linear, g01Linear, b01Linear = cieXyzToLinearsRgb(x, y, z)
                         r01Gamma, g01Gamma, b01Gamma = linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
@@ -796,7 +830,7 @@ end
 
 ---@param palette Palette
 ---@param colorFormat "CMYK"|"GRAY"|"HSB"|"LAB"|"RGB"
----@param colorSpace "ADOBE_RGB"|"S_RGB"
+---@param colorSpace "ADOBE_RGB"|"DISPLAY_P3"|"S_RGB"
 ---@param grayMethod "HSI"|"HSL"|"HSV"|"LUMA"
 ---@param externalRef "GIMP"|"KRITA"
 ---@return string
@@ -827,6 +861,7 @@ local function writeAco(
     local calcLinear <const> = writeLab or writeGry or writeCmyk
 
     local isAdobe <const> = colorSpace == "ADOBE_RGB"
+    local isP3 <const> = colorSpace == "DISPLAY_P3"
     local isKrita <const> = externalRef == "KRITA"
 
     -- Krita and GIMP treat gray differently
@@ -838,6 +873,7 @@ local function writeAco(
     local isGryHsl <const> = grayMethod == "HSL"
     local isGryLuma <const> = grayMethod == "LUMA"
     local isGryAdobeY <const> = isAdobe and isGryLuma
+    local isGryP3Y <const> = isP3 and isGryLuma
 
     local pkZero <const> = strpack(">I2", 0)
     local pkColorFormat = strpack(">I2", 0)
@@ -881,6 +917,9 @@ local function writeAco(
                 if isAdobe then
                     r01Linear, g01Linear, b01Linear = gammaAdobeRgbToLinearAdobeRgb(r01Gamma, g01Gamma, b01Gamma)
                     xCie, yCie, zCie = linearAdobeRgbToCieXyz(r01Linear, g01Linear, b01Linear)
+                elseif isP3 then
+                    r01Linear, g01Linear, b01Linear = gammasRgbToLinearsRgb(r01Gamma, g01Gamma, b01Gamma)
+                    xCie, yCie, zCie = linearP3ToCieXyz(r01Linear, g01Linear, b01Linear)
                 else
                     r01Linear, g01Linear, b01Linear = gammasRgbToLinearsRgb(r01Gamma, g01Gamma, b01Gamma)
                     xCie, yCie, zCie = linearsRgbToCieXyz(r01Linear, g01Linear, b01Linear)
@@ -896,6 +935,8 @@ local function writeAco(
                         gray = grayMethodHsv(r01Gamma, g01Gamma, b01Gamma)
                     elseif isGryAdobeY then
                         gray = cieLumToAdobeGray(yCie)
+                    elseif isGryP3Y then
+                        gray = cieLumTosGray(yCie)
                     else
                         gray = cieLumTosGray(yCie)
                     end
@@ -993,7 +1034,7 @@ end
 
 ---@param palette Palette
 ---@param colorFormat "CMYK"|"GRAY"|"LAB"|"RGB"
----@param colorSpace "ADOBE_RGB"|"S_RGB"
+---@param colorSpace "ADOBE_RGB"|"DISPLAY_P3"|"S_RGB"
 ---@param grayMethod "HSI"|"HSL"|"HSV"|"LUMA"
 ---@param externalRef "GIMP"|"KRITA"|"OTHER"
 ---@return string
@@ -1022,12 +1063,14 @@ local function writeAse(
     local calcLinear <const> = writeLab or writeGry or writeCmyk
 
     local isAdobe <const> = colorSpace == "ADOBE_RGB"
+    local isP3 <const> = colorSpace == "DISPLAY_P3"
 
     local isGryHsv <const> = grayMethod == "HSV"
     local isGryHsi <const> = grayMethod == "HSI"
     local isGryHsl <const> = grayMethod == "HSL"
     local isGryLuma <const> = grayMethod == "LUMA"
     local isGryAdobeY <const> = isAdobe and isGryLuma
+    local isGryP3Y <const> = isP3 and isGryLuma
 
     local lScalar = 0.01
     local isGimp <const> = externalRef == "GIMP"
@@ -1106,6 +1149,9 @@ local function writeAse(
                 if isAdobe then
                     r01Linear, g01Linear, b01Linear = gammaAdobeRgbToLinearAdobeRgb(r01Gamma, g01Gamma, b01Gamma)
                     xCie, yCie, zCie = linearAdobeRgbToCieXyz(r01Linear, g01Linear, b01Linear)
+                elseif isP3 then
+                    r01Linear, g01Linear, b01Linear = gammasRgbToLinearsRgb(r01Gamma, g01Gamma, b01Gamma)
+                    xCie, yCie, zCie = linearP3ToCieXyz(r01Linear, g01Linear, b01Linear)
                 else
                     r01Linear, g01Linear, b01Linear = gammasRgbToLinearsRgb(r01Gamma, g01Gamma, b01Gamma)
                     xCie, yCie, zCie = linearsRgbToCieXyz(r01Linear, g01Linear, b01Linear)
@@ -1121,6 +1167,8 @@ local function writeAse(
                         gray = grayMethodHsv(r01Gamma, g01Gamma, b01Gamma)
                     elseif isGryAdobeY then
                         gray = cieLumToAdobeGray(yCie)
+                    elseif isGryP3Y then
+                        gray = cieLumTosGray(yCie)
                     else
                         gray = cieLumTosGray(yCie)
                     end
