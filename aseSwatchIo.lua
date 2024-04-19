@@ -25,6 +25,9 @@
 
     CIE-sRGB, CIE-AdobeRGB formulae:
     https://www.easyrgb.com/en/math.php
+
+    Display P3 conversions to and from CIE XYZ:
+    https://www.w3.org/TR/css-color-4/#color-conversion-code
 ]]
 
 local colorFormats <const> = { "CMYK", "GRAY", "HSB", "LAB", "RGB" }
