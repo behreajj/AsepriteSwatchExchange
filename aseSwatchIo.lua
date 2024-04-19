@@ -804,8 +804,6 @@ local function writeAco(
     grayMethod,
     externalRef)
     -- Cache commonly used methods.
-    local strbyte <const> = string.byte
-    local strfmt <const> = string.format
     local strpack <const> = string.pack
     local tconcat <const> = table.concat
     local tinsert <const> = table.insert
@@ -1310,7 +1308,6 @@ dlg:button {
             end
         end
 
-        -- Just getting the tool above seems to work.
         -- Prevent uncommitted selection transformation (drop pixels) from
         -- raising an error.
         -- app.command.InvertMask()
@@ -1521,10 +1518,18 @@ dlg:button {
         end
         if binFile == nil then return end
 
+        local appTool <const> = app.tool
+        if appTool then
+            local toolName <const> = appTool.id
+            if toolName == "slice" then
+                app.tool = "hand"
+            end
+        end
+
         -- Prevent uncommitted selection transformation (drop pixels) from
         -- raising an error.
-        app.command.InvertMask()
-        app.command.InvertMask()
+        -- app.command.InvertMask()
+        -- app.command.InvertMask()
 
         local activeFrame <const> = app.frame or activeSprite.frames[1]
         local frIdx <const> = activeFrame.frameNumber
