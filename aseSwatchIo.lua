@@ -28,6 +28,7 @@
 
     Display P3 conversions to and from CIE XYZ:
     https://www.w3.org/TR/css-color-4/#color-conversion-code
+    https://fujiwaratko.sakura.ne.jp/infosci/colorspace/colorspace2_e.html
 ]]
 
 local colorFormats <const> = { "CMYK", "GRAY", "HSB", "LAB", "RGB" }
@@ -132,9 +133,9 @@ end
 ---@return number g01Lnear
 ---@return number b01Lnear
 local function cieXyzToLinearP3(x, y, z)
-    return 2.4934969119414 * x - 0.93138361791912 * y - 0.40271078445072 * z,
-        -0.82948896956158 * x + 1.7626640603183 * y + 0.023624685841944 * z,
-        0.035845830243784 * x - 0.076172389268042 * y + 0.95688452400769 * z
+    return 2.493497 * x - 0.9313836 * y - 0.4027108 * z,
+        -0.829489 * x + 1.7626641 * y + 0.023624687 * z,
+        0.03584583 * x - 0.07617239 * y + 0.9568845 * z
 end
 
 ---@param x number
@@ -284,9 +285,9 @@ end
 ---@return number y
 ---@return number z
 local function linearP3ToCieXyz(r01Linear, g01Linear, b01Linear)
-    return 0.4865709486482 * r01Linear + 0.26566769316909 * g01Linear + 0.19821728523436 * b01Linear,
-        0.22897456406975 * r01Linear + 0.69173852183651 * g01Linear + 0.079286914093745 * b01Linear,
-        0.0 * r01Linear + 0.045113381858903 * g01Linear + 1.043944368901 * b01Linear
+    return 0.48657095 * r01Linear + 0.2656677 * g01Linear + 0.19821729 * b01Linear,
+        0.22897457 * r01Linear + 0.69173855 * g01Linear + 0.07928691 * b01Linear,
+        0.0 * r01Linear + 0.04511338 * g01Linear + 1.0439444 * b01Linear
 end
 
 ---@param r01Linear number
