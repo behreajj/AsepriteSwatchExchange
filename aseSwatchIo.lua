@@ -1460,6 +1460,10 @@ dlg:button {
                             activeSprite:setPalette(palette)
                             if oldColorMode == ColorMode.INDEXED then
                                 app.command.ChangePixelFormat { format = "indexed" }
+                                -- Could set transparent color index... but
+                                -- you'd have to open the file as a sprite,
+                                -- then get the index and palette, then close
+                                -- the sprite.
                             end
                         end
                     end
@@ -1555,8 +1559,6 @@ dlg:button {
 }
 
 dlg:separator { id = "exportSep" }
-
-dlg:newrow { always = false }
 
 dlg:file {
     id = "exportFilepath",
