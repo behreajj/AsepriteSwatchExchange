@@ -1348,7 +1348,7 @@ dlg:check {
     selected = defaults.preserveIndices
 }
 
-dlg:separator { id = "cancelSep" }
+dlg:separator { id = "importSep" }
 
 dlg:file {
     id = "importFilepath",
