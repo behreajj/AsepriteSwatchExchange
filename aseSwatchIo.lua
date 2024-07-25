@@ -21,6 +21,7 @@
     https://devblog.cyotek.com/post/writing-adobe-swatch-exchange-ase-files-using-csharp
 
     GIMP ASE support (NEW):
+    Seems like GIMP has a bug where the last swatch is not read.
     https://gitlab.gnome.org/GNOME/gimp/blob/gimp-2-10/app/core/gimppalette-load.c#L931
 
     CIE-sRGB, CIE-AdobeRGB formulae:
@@ -1403,11 +1404,6 @@ dlg:button {
                 app.tool = "hand"
             end
         end
-
-        -- Prevent uncommitted selection transformation (drop pixels) from
-        -- raising an error.
-        -- app.command.InvertMask()
-        -- app.command.InvertMask()
 
         -- Preserve fore- and background colors.
         local fgc <const> = app.fgColor
