@@ -978,7 +978,10 @@ local function writeAco(
                         gray = cieLumTosGray(yCie)
                     end
 
-                    -- Krita treats this as being in linear space.
+                    -- Krita treats gray as being in linear space.
+                    -- Photopea does not open gray correctly.
+                    -- https://1j01.github.io/anypalette.js/demo opens these
+                    -- as much darker.
                     local gray16 <const> = floor((gray ^ exponent) * 10000.0 + 0.5)
                     pkw = strpack(">I2", gray16)
                 elseif writeCmyk then
@@ -1017,9 +1020,7 @@ local function writeAco(
                         pkx = strpack(">I2", a16)
                         pkw = strpack(">I2", b16)
                     else
-                        -- TODO: Without another program that supports ACO LAB,
-                        -- it's hard to know whether a and b should be signed or
-                        -- unsigned integers.
+                        -- This opens correctly in Photopea https://www.photopea.com/ .
                         l16 = floor(l * 100.0 + 0.5)
                         a16 = floor(min(max(a, -127.5), 127.5)) * 100
                         b16 = floor(min(max(b, -127.5), 127.5)) * 100
