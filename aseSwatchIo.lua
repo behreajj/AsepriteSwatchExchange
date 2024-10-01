@@ -251,6 +251,8 @@ local function hsvToRgb(hue, sat, val)
         return tint3, tint1, v
     elseif sector == 5 then
         return v, tint1, tint2
+    elseif sector == 6 then
+        return v, tint3, tint1
     end
 
     return 0.0, 0.0, 0.0
@@ -1625,11 +1627,6 @@ dlg:button {
                 app.tool = "hand"
             end
         end
-
-        -- Prevent uncommitted selection transformation (drop pixels) from
-        -- raising an error.
-        -- app.command.InvertMask()
-        -- app.command.InvertMask()
 
         local activeFrame <const> = app.frame or activeSprite.frames[1]
         local frIdx <const> = activeFrame.frameNumber
