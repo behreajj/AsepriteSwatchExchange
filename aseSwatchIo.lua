@@ -21,7 +21,6 @@
     https://devblog.cyotek.com/post/writing-adobe-swatch-exchange-ase-files-using-csharp
 
     GIMP ASE support (NEW):
-    Seems like GIMP has a bug where the last swatch is not read.
     https://gitlab.gnome.org/GNOME/gimp/blob/gimp-2-10/app/core/gimppalette-load.c#L931
 
     CIE-sRGB, CIE-AdobeRGB formulae:
@@ -30,6 +29,10 @@
     Display P3 conversions to and from CIE XYZ:
     https://www.w3.org/TR/css-color-4/#color-conversion-code
     https://fujiwaratko.sakura.ne.jp/infosci/colorspace/colorspace2_e.html
+
+    Ase files can be downloaded from https://color.adobe.com/ .
+    This confirms that LAB format for Krita is right and GIMP is wrong.
+    Bug report: https://gitlab.gnome.org/GNOME/gimp/-/issues/12478
 ]]
 
 local colorFormats <const> = { "CMYK", "GRAY", "HSB", "LAB", "RGB" }
@@ -52,6 +55,7 @@ local defaults <const> = {
 ---@return number x
 ---@return number y
 ---@return number z
+---@nodiscard
 local function cieLabToCieXyz(l, a, b)
     local y = (l + 16.0) * 0.008620689655172414
     local x = a * 0.002 + y
@@ -76,12 +80,14 @@ end
 
 ---@param y number
 ---@return number
+---@nodiscard
 local function cieLumToAdobeGray(y)
     return y ^ 0.4547069271758437
 end
 
 ---@param y number
 ---@return number
+---@nodiscard
 local function cieLumTosGray(y)
     return y <= 0.0031308 and y * 12.92
         or (y ^ 0.41666666666667) * 1.055 - 0.055
@@ -93,6 +99,7 @@ end
 ---@return number l
 ---@return number a
 ---@return number b
+---@nodiscard
 local function cieXyzToCieLab(x, y, z)
     local vx = x * 1.0521110608435826
     vx = vx > 0.008856
@@ -122,6 +129,7 @@ end
 ---@return number r01Lnear
 ---@return number g01Lnear
 ---@return number b01Lnear
+---@nodiscard
 local function cieXyzToLinearAdobeRgb(x, y, z)
     return 2.04137 * x - 0.56495 * y - 0.34469 * z,
         -0.96927 * x + 1.87601 * y + 0.04156 * z,
@@ -134,6 +142,7 @@ end
 ---@return number r01Lnear
 ---@return number g01Lnear
 ---@return number b01Lnear
+---@nodiscard
 local function cieXyzToLinearP3(x, y, z)
     return 2.493497 * x - 0.9313836 * y - 0.4027108 * z,
         -0.829489 * x + 1.7626641 * y + 0.023624687 * z,
@@ -146,6 +155,7 @@ end
 ---@return number r01Linear
 ---@return number g01Linear
 ---@return number b01Linear
+---@nodiscard
 local function cieXyzToLinearsRgb(x, y, z)
     return 3.2408123 * x - 1.5373085 * y - 0.49858654 * z,
         -0.969243 * x + 1.8759663 * y + 0.041555032 * z,
@@ -159,6 +169,7 @@ end
 ---@return number r01Gamma
 ---@return number g01Gamma
 ---@return number b01Gamma
+---@nodiscard
 local function cmykToRgb(c, m, y, k)
     local u <const> = 1.0 - k
     local r01 <const> = (1.0 - c) * u
@@ -173,6 +184,7 @@ end
 ---@return number r01Linear
 ---@return number g01Linear
 ---@return number b01Linear
+---@nodiscard
 local function gammaAdobeRgbToLinearAdobeRgb(r01Gamma, g01Gamma, b01Gamma)
     return r01Gamma ^ 2.19921875,
         g01Gamma ^ 2.19921875,
@@ -185,6 +197,7 @@ end
 ---@return number r01Linear
 ---@return number g01Linear
 ---@return number b01Linear
+---@nodiscard
 local function gammasRgbToLinearsRgb(r01Gamma, g01Gamma, b01Gamma)
     local r01Linear <const> = r01Gamma <= 0.04045
         and r01Gamma * 0.077399380804954
@@ -202,6 +215,7 @@ end
 ---@param g01 number
 ---@param b01 number
 ---@return number
+---@nodiscard
 local function grayMethodHsi(r01, g01, b01)
     return (r01 + g01 + b01) / 3.0
 end
@@ -210,6 +224,7 @@ end
 ---@param g01 number
 ---@param b01 number
 ---@return number
+---@nodiscard
 local function grayMethodHsl(r01, g01, b01)
     return (math.min(r01, g01, b01) + math.max(r01, g01, b01)) * 0.5
 end
@@ -218,6 +233,7 @@ end
 ---@param g01 number
 ---@param b01 number
 ---@return number
+---@nodiscard
 local function grayMethodHsv(r01, g01, b01)
     return math.max(r01, g01, b01)
 end
@@ -228,6 +244,7 @@ end
 ---@return number r01Gamma
 ---@return number g01Gamma
 ---@return number b01Gamma
+---@nodiscard
 local function hsvToRgb(hue, sat, val)
     local h <const> = (hue % 1.0) * 6.0
     local s <const> = math.min(math.max(sat, 0.0), 1.0)
@@ -264,6 +281,7 @@ end
 ---@return number r01Gamma
 ---@return number g01Gamma
 ---@return number b01Gamma
+---@nodiscard
 local function linearAdobeRgbToGammaAdobeRgb(r01Linear, g01Linear, b01Linear)
     return r01Linear ^ 0.4547069271758437,
         g01Linear ^ 0.4547069271758437,
@@ -276,6 +294,7 @@ end
 ---@return number x
 ---@return number y
 ---@return number z
+---@nodiscard
 local function linearAdobeRgbToCieXyz(r01Linear, g01Linear, b01Linear)
     return 0.57667 * r01Linear + 0.18555 * g01Linear + 0.18819 * b01Linear,
         0.29738 * r01Linear + 0.62735 * g01Linear + 0.07527 * b01Linear,
@@ -288,6 +307,7 @@ end
 ---@return number x
 ---@return number y
 ---@return number z
+---@nodiscard
 local function linearP3ToCieXyz(r01Linear, g01Linear, b01Linear)
     return 0.48657095 * r01Linear + 0.2656677 * g01Linear + 0.19821729 * b01Linear,
         0.22897457 * r01Linear + 0.69173855 * g01Linear + 0.07928691 * b01Linear,
@@ -300,6 +320,7 @@ end
 ---@return number x
 ---@return number y
 ---@return number z
+---@nodiscard
 local function linearsRgbToCieXyz(r01Linear, g01Linear, b01Linear)
     return 0.41241086 * r01Linear + 0.35758457 * g01Linear + 0.1804538 * b01Linear,
         0.21264935 * r01Linear + 0.71516913 * g01Linear + 0.07218152 * b01Linear,
@@ -312,6 +333,7 @@ end
 ---@return number r01Gamma
 ---@return number g01Gamma
 ---@return number b01Gamma
+---@nodiscard
 local function linearsRgbToGammasRgb(r01Linear, g01Linear, b01Linear)
     local r01Gamma <const> = r01Linear <= 0.0031308
         and r01Linear * 12.92
@@ -329,6 +351,7 @@ end
 ---@param colorSpace "ADOBE_RGB"|"DISPLAY_P3"|"S_RGB"
 ---@param externalRef "GIMP"|"KRITA"
 ---@return Color[]
+---@nodiscard
 local function readAco(fileData, colorSpace, externalRef)
     ---@type Color[]
     local aseColors <const> = { Color { r = 0, g = 0, b = 0, a = 0 } }
@@ -405,10 +428,6 @@ local function readAco(fileData, colorSpace, externalRef)
                 a = (upkx - 32768) / 257.0
                 b = (upkw - 32768) / 257.0
             else
-                -- TODO: Without another program that supports ACO LAB,
-                -- it's hard to know whether a and b should be signed or
-                -- unsigned integers.
-
                 upkx = strunpack(">i2", upkxStr)
                 upky = strunpack(">i2", upkyStr)
 
@@ -500,6 +519,7 @@ end
 ---@param fileData string
 ---@param preserveIndices boolean
 ---@return Color[]
+---@nodiscard
 local function readAct(fileData, preserveIndices)
     local lenFileData <const> = #fileData
     local is772 <const> = lenFileData == 772
@@ -597,6 +617,7 @@ end
 ---@param colorSpace "ADOBE_RGB"|"DISPLAY_P3"|"S_RGB"
 ---@param externalRef "GIMP"|"KRITA"|"OTHER"
 ---@return Color[]
+---@nodiscard
 local function readAse(fileData, colorSpace, externalRef)
     ---@type Color[]
     local aseColors <const> = { Color { r = 0, g = 0, b = 0, a = 0 } }
@@ -630,7 +651,7 @@ local function readAse(fileData, colorSpace, externalRef)
         local isGroup <const> = blockHeader == 0xc001
         local isEntry <const> = blockHeader == 0x0001
         if isGroup or isEntry then
-            --Excludes header start.
+            -- Excludes header start.
             blockLen = strunpack(">i4", strsub(fileData, i + 2, i + 5))
             -- print("blockLen: " .. blockLen)
 
@@ -777,6 +798,7 @@ end
 ---@return number m
 ---@return number y
 ---@return number k
+---@nodiscard
 local function rgbToCmyk(r01, g01, b01, gray)
     local c = 0.0
     local m = 0.0
@@ -797,6 +819,7 @@ end
 ---@return number h
 ---@return number s
 ---@return number v
+---@nodiscard
 local function rgbToHsv(r01, g01, b01)
     local gbmx <const> = math.max(g01, b01)
     local gbmn <const> = math.min(g01, b01)
@@ -828,6 +851,7 @@ end
 
 ---@param palette Palette
 ---@return string
+---@nodiscard
 local function writeAct(palette)
     ---@type table<integer, integer>
     local hexDict <const> = {}
@@ -873,6 +897,7 @@ end
 ---@param grayMethod "HSI"|"HSL"|"HSV"|"LUMA"
 ---@param externalRef "GIMP"|"KRITA"
 ---@return string
+---@nodiscard
 local function writeAco(
     palette,
     colorFormat,
@@ -1078,6 +1103,7 @@ end
 ---@param grayMethod "HSI"|"HSL"|"HSV"|"LUMA"
 ---@param externalRef "GIMP"|"KRITA"|"OTHER"
 ---@return string
+---@nodiscard
 local function writeAse(
     palette,
     colorFormat,
@@ -1089,13 +1115,44 @@ local function writeAse(
     local strfmt <const> = string.format
     local strpack <const> = string.pack
     local tconcat <const> = table.concat
-    local tinsert <const> = table.insert
 
     local lenPalette <const> = #palette
 
     ---@type string[]
-    local binWords <const> = {}
+    local bin <const> = {}
+    local lenBin = 0
     local numColors = 0
+
+    local pkSignature <const> = strpack(">i4", 0x41534546) -- "ASEF"
+    local pkVersion <const> = strpack(">i4", 0x00010000)   -- 1.00
+
+    -- If signed pack is used, then this raises an integer overflow error.
+    local groupOpen <const> = strpack(">I2", 0xc001)
+    local groupName <const> = "Palette"
+    local lenGroupName <const> = #groupName
+    local pkLenGroupName <const> = strpack(">i2", lenGroupName + 1)
+    local pkStrTerminus <const> = strpack(">i2", 0)
+    local pkGroupBlockLen <const> = strpack(">i4", 2 + 2 * (lenGroupName + 1))
+
+    bin[lenBin + 1] = pkSignature
+    bin[lenBin + 2] = pkVersion
+    bin[lenBin + 3] = "" -- Number of blocks (overwritten at end)
+    bin[lenBin + 4] = groupOpen
+    bin[lenBin + 5] = pkGroupBlockLen
+    bin[lenBin + 6] = pkLenGroupName
+    lenBin = lenBin + 6
+
+    -- Write group name to 16-bit characters.
+    local h = 0
+    while h < lenGroupName do
+        h = h + 1
+        local int8 <const> = strbyte(groupName, h, h + 1)
+        local int16 <const> = strpack(">i2", int8)
+        lenBin = lenBin + 1
+        bin[lenBin] = int16
+    end
+    lenBin = lenBin + 1
+    bin[lenBin] = pkStrTerminus
 
     local writeLab <const> = colorFormat == "LAB"
     local writeGry <const> = colorFormat == "GRAY"
@@ -1134,7 +1191,6 @@ local function writeAse(
     local pkEntryHeader <const> = strpack(">i2", 0x0001)
     local pkNormalColorMode <const> = strpack(">i2", 0x0002) -- global|spot|normal
     local pkLenChars16 <const> = strpack(">i2", 7)           -- eg., "aabbcc" & 0
-    local pkStrTerminus <const> = strpack(">i2", 0)
 
     local i = 0
     while i < lenPalette do
@@ -1152,9 +1208,10 @@ local function writeAse(
             local nameStr8 <const> = strfmt("%06x", hex24)
 
             -- Write color block header.
-            binWords[#binWords + 1] = pkEntryHeader
-            binWords[#binWords + 1] = pkBlockLen
-            binWords[#binWords + 1] = pkLenChars16
+            bin[lenBin + 1] = pkEntryHeader
+            bin[lenBin + 2] = pkBlockLen
+            bin[lenBin + 3] = pkLenChars16
+            lenBin = lenBin + 3
 
             -- Write name to 16-bit characters.
             local j = 0
@@ -1162,11 +1219,14 @@ local function writeAse(
                 j = j + 1
                 local int8 <const> = strbyte(nameStr8, j, j + 1)
                 local int16 <const> = strpack(">i2", int8)
-                binWords[#binWords + 1] = int16
+                lenBin = lenBin + 1
+                bin[lenBin] = int16
             end
-            binWords[#binWords + 1] = pkStrTerminus -- 16
+            lenBin = lenBin + 1
+            bin[lenBin] = pkStrTerminus -- 16
 
-            binWords[#binWords + 1] = pkColorFormat -- 20
+            lenBin = lenBin + 1
+            bin[lenBin] = pkColorFormat -- 20
 
             local r01Gamma <const> = r8 / 255.0
             local g01Gamma <const> = g8 / 255.0
@@ -1214,7 +1274,8 @@ local function writeAse(
                     end
 
                     pkx = strpack(">f", gray)
-                    binWords[#binWords + 1] = pkx -- 24
+                    lenBin = lenBin + 1
+                    bin[lenBin] = pkx -- 24
                 elseif writeCmyk then
                     local gray = 0.0
                     local c = 0.0
@@ -1234,10 +1295,11 @@ local function writeAse(
                     pkz = strpack(">f", y)
                     local pkw <const> = strpack(">f", k)
 
-                    binWords[#binWords + 1] = pkx -- 24
-                    binWords[#binWords + 1] = pky -- 28
-                    binWords[#binWords + 1] = pkz -- 32
-                    binWords[#binWords + 1] = pkw -- 36
+                    bin[lenBin + 1] = pkx -- 24
+                    bin[lenBin + 2] = pky -- 28
+                    bin[lenBin + 3] = pkz -- 32
+                    bin[lenBin + 4] = pkw -- 36
+                    lenBin = lenBin + 4
                 elseif writeLab then
                     local l <const>, a <const>, b <const> = cieXyzToCieLab(xCie, yCie, zCie)
 
@@ -1245,30 +1307,38 @@ local function writeAse(
                     pky = strpack(">f", a)
                     pkz = strpack(">f", b)
 
-                    binWords[#binWords + 1] = pkx -- 24
-                    binWords[#binWords + 1] = pky -- 28
-                    binWords[#binWords + 1] = pkz -- 32
+                    bin[lenBin + 1] = pkx -- 24
+                    bin[lenBin + 2] = pky -- 28
+                    bin[lenBin + 3] = pkz -- 32
+                    lenBin = lenBin + 3
                 end
             else
-                binWords[#binWords + 1] = pkx -- 24
-                binWords[#binWords + 1] = pky -- 28
-                binWords[#binWords + 1] = pkz -- 32
+                bin[lenBin + 1] = pkx -- 24
+                bin[lenBin + 2] = pky -- 28
+                bin[lenBin + 3] = pkz -- 32
+                lenBin = lenBin + 3
             end
 
-            binWords[#binWords + 1] = pkNormalColorMode -- 34 RGB, 26 Gray, 38 CMYK
+            lenBin = lenBin + 1
+            bin[lenBin] = pkNormalColorMode -- 34 RGB, 26 Gray, 38 CMYK
         end
 
         i = i + 1
     end
 
-    local pkNumColors <const> = strpack(">i4", numColors)
-    local pkVersion <const> = strpack(">i4", 0x00010000)   -- 1.00
-    local pkSignature <const> = strpack(">i4", 0x41534546) -- "ASEF"
+    -- Open and close group are considered 2 extra blocks.
+    local pkNumBlocks <const> = strpack(">i4", numColors + 2)
+    bin[3] = pkNumBlocks
 
-    tinsert(binWords, 1, pkNumColors)
-    tinsert(binWords, 1, pkVersion)
-    tinsert(binWords, 1, pkSignature)
-    return tconcat(binWords, "")
+    local groupClose <const> = strpack(">I2", 0xc002)
+    local groupZero <const> = strpack(">i4", 0)
+
+    lenBin = lenBin + 1
+    bin[lenBin] = groupClose
+    lenBin = lenBin + 1
+    bin[lenBin] = groupZero
+
+    return tconcat(bin)
 end
 
 local dlg <const> = Dialog { title = "ASE Palette IO" }
