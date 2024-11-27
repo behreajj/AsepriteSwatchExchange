@@ -30,7 +30,7 @@ Rudimentary formulas for CMYK are included because they seemed better than throw
 
 Swatches include names. This script writes the 6-digit hexadecimal code as name; it does not read the name on import.
 
-These files may also include groups of colors. Groups are ignored by the importer; the exporter does not write any groups. The distinction between global, spot and normal colors is ignored as well.
+These files may also include groups of colors. Groups are ignored by the importer. The exporter writes a single group named "Palette" for all colors. The distinction between global, spot and normal colors is ignored as well.
 
 RGB format `.ase` palettes can be downloaded from [Lospec](https://lospec.com/palette-list).
 
