@@ -1098,6 +1098,7 @@ local function writeAco(
 end
 
 ---@param palette Palette
+---@param groupName string
 ---@param colorFormat "CMYK"|"GRAY"|"LAB"|"RGB"
 ---@param colorSpace "ADOBE_RGB"|"DISPLAY_P3"|"S_RGB"
 ---@param grayMethod "HSI"|"HSL"|"HSV"|"LUMA"
@@ -1106,6 +1107,7 @@ end
 ---@nodiscard
 local function writeAse(
     palette,
+    groupName,
     colorFormat,
     colorSpace,
     grayMethod,
@@ -1128,8 +1130,8 @@ local function writeAse(
 
     -- If signed pack is used, then this raises an integer overflow error.
     local groupOpen <const> = strpack(">I2", 0xc001)
-    local groupName <const> = "Palette"
-    local lenGroupName <const> = #groupName
+    local grpNmVerif <const> = groupName or "Palette"
+    local lenGroupName <const> = #grpNmVerif
     local pkLenGroupName <const> = strpack(">i2", lenGroupName + 1)
     local pkStrTerminus <const> = strpack(">i2", 0)
     local pkGroupBlockLen <const> = strpack(">i4", 2 + 2 * (lenGroupName + 1))
@@ -1146,7 +1148,7 @@ local function writeAse(
     local h = 0
     while h < lenGroupName do
         h = h + 1
-        local int8 <const> = strbyte(groupName, h, h + 1)
+        local int8 <const> = strbyte(grpNmVerif, h, h + 1)
         local int16 <const> = strpack(">i2", int8)
         lenBin = lenBin + 1
         bin[lenBin] = int16
@@ -1511,7 +1513,8 @@ dlg:button {
 
         if (not isAsef) and fileExt == "ase" then
             -- https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#header
-            local asepriteHeader <const> = string.unpack("I2", string.sub(fileData, 5, 6))
+            local asepriteHeader <const> = string.unpack("<I2",
+                string.sub(fileData, 5, 6))
             -- print(strfmt("asepriteHeader: %04x", asepriteHeader))
 
             if asepriteHeader == 0xa5e0 then
@@ -1716,8 +1719,9 @@ dlg:button {
         elseif fileExt == "act" then
             binStr = writeAct(palette)
         else
-            binStr = writeAse(palette, colorFormat, colorSpace, grayMethod,
-                externalRef)
+            local groupName <const> = "Palette"
+            binStr = writeAse(palette, groupName, colorFormat, colorSpace,
+                grayMethod, externalRef)
         end
         binFile:write(binStr)
         binFile:close()
