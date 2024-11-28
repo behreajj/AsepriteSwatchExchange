@@ -42,6 +42,7 @@ local fileExts <const> = { "aco", "act", "ase" }
 local grayMethods <const> = { "HSI", "HSL", "HSV", "LUMA" }
 
 local defaults <const> = {
+    name = "Palette",
     colorFormat = "RGB",
     colorSpace = "S_RGB",
     grayMethod = "LUMA",
@@ -1117,6 +1118,7 @@ local function writeAse(
     local strfmt <const> = string.format
     local strpack <const> = string.pack
     local tconcat <const> = table.concat
+    local utf8codes <const> = utf8.codes
 
     local lenPalette <const> = #palette
 
@@ -1131,30 +1133,32 @@ local function writeAse(
     -- If signed pack is used, then this raises an integer overflow error.
     local groupOpen <const> = strpack(">I2", 0xc001)
     local grpNmVerif <const> = groupName or "Palette"
-    local lenGroupName <const> = #grpNmVerif
-    local pkLenGroupName <const> = strpack(">i2", lenGroupName + 1)
     local pkStrTerminus <const> = strpack(">i2", 0)
-    local pkGroupBlockLen <const> = strpack(">i4", 2 + 2 * (lenGroupName + 1))
 
     bin[lenBin + 1] = pkSignature
     bin[lenBin + 2] = pkVersion
-    bin[lenBin + 3] = "" -- Number of blocks (overwritten at end)
+    bin[lenBin + 3] = "" -- Number of blocks
     bin[lenBin + 4] = groupOpen
-    bin[lenBin + 5] = pkGroupBlockLen
-    bin[lenBin + 6] = pkLenGroupName
+    bin[lenBin + 5] = "" -- Group block length
+    bin[lenBin + 6] = "" -- Name length
+    local lenBlockIdx <const> = lenBin + 5
+    local lenGroupNameIdx <const> = lenBin + 6
     lenBin = lenBin + 6
 
-    -- Write group name to 16-bit characters.
-    local h = 0
-    while h < lenGroupName do
-        h = h + 1
-        local int8 <const> = strbyte(grpNmVerif, h, h + 1)
-        local int16 <const> = strpack(">i2", int8)
+    local lenGroupName = 0
+    for _, code in utf8codes(grpNmVerif) do
+        lenGroupName = lenGroupName + 1
+        local int16 <const> = strpack(">I2", code & 0xffff)
         lenBin = lenBin + 1
         bin[lenBin] = int16
     end
     lenBin = lenBin + 1
     bin[lenBin] = pkStrTerminus
+
+    local pkLenGroupName <const> = strpack(">i2", lenGroupName + 1)
+    local pkLenGroupBlock <const> = strpack(">i4", 2 + 2 * (lenGroupName + 1))
+    bin[lenBlockIdx] = pkLenGroupBlock
+    bin[lenGroupNameIdx] = pkLenGroupName
 
     local writeLab <const> = colorFormat == "LAB"
     local writeGry <const> = colorFormat == "GRAY"
@@ -1280,10 +1284,7 @@ local function writeAse(
                     bin[lenBin] = pkx -- 24
                 elseif writeCmyk then
                     local gray = 0.0
-                    local c = 0.0
-                    local m = 0.0
-                    local y = 0.0
-                    local k = 0.0
+                    local c, m, y, k = 0.0, 0.0, 0.0, 0.0
                     if isGimp then
                         gray = grayMethodHsv(r01Linear, g01Linear, b01Linear)
                         c, m, y, k = rgbToCmyk(r01Linear, g01Linear, b01Linear, gray)
@@ -1344,6 +1345,16 @@ local function writeAse(
 end
 
 local dlg <const> = Dialog { title = "ASE Palette IO" }
+
+dlg:entry {
+    id = "name",
+    label = "Name:",
+    text = defaults.name,
+    focus = false,
+    visible = true,
+}
+
+dlg:newrow { always = false }
 
 dlg:combobox {
     id = "colorFormat",
@@ -1658,6 +1669,8 @@ dlg:button {
 
         -- Unpack arguments.
         local args <const> = dlg.data
+        local groupName <const> = args.name
+            or defaults.name --[[@as string]]
         local exportFilepath <const> = args.exportFilepath --[[@as string]]
         local colorFormat <const> = args.colorFormat
             or defaults.colorFormat --[[@as string]]
@@ -1719,7 +1732,6 @@ dlg:button {
         elseif fileExt == "act" then
             binStr = writeAct(palette)
         else
-            local groupName <const> = "Palette"
             binStr = writeAse(palette, groupName, colorFormat, colorSpace,
                 grayMethod, externalRef)
         end
