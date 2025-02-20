@@ -187,9 +187,12 @@ end
 ---@return number b01Linear
 ---@nodiscard
 local function gammaAdobeRgbToLinearAdobeRgb(r01Gamma, g01Gamma, b01Gamma)
-    return r01Gamma ^ 2.19921875,
-        g01Gamma ^ 2.19921875,
-        b01Gamma ^ 2.19921875
+    local r01Linear <const> = r01Gamma ^ 2.19921875
+    local g01Linear <const> = g01Gamma ^ 2.19921875
+    local b01Linear <const> = b01Gamma ^ 2.19921875
+    return r01Linear ~= r01Linear and 0.0 or r01Linear,
+        g01Linear ~= g01Linear and 0.0 or g01Linear,
+        b01Linear ~= b01Linear and 0.0 or b01Linear
 end
 
 ---@param r01Gamma number
