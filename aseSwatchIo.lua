@@ -284,9 +284,12 @@ end
 ---@return number b01Gamma
 ---@nodiscard
 local function linearAdobeRgbToGammaAdobeRgb(r01Linear, g01Linear, b01Linear)
-    return r01Linear ^ 0.4547069271758437,
-        g01Linear ^ 0.4547069271758437,
-        b01Linear ^ 0.4547069271758437
+    local r01Gamma <const> = r01Linear ^ 0.4547069271758437
+    local g01Gamma <const> = g01Linear ^ 0.4547069271758437
+    local b01Gamma <const> = b01Linear ^ 0.4547069271758437
+    return r01Gamma ~= r01Gamma and 0.0 or r01Gamma,
+        g01Gamma ~= g01Gamma and 0.0 or g01Gamma,
+        b01Gamma ~= b01Gamma and 0.0 or b01Gamma
 end
 
 ---@param r01Linear number
