@@ -2,7 +2,7 @@
 
 ![Screen Cap](screenCap.png)
 
-This is an Adobe Swatch Exchange (`.ase`), Adobe Color (`.aco`) and Adobe Color Table (`.act`) import-export dialog for the [Aseprite](https://www.aseprite.org/) [scripting API](https://www.aseprite.org/docs/scripting/). Support for all formats is **partial**. The minimum supported version of Aseprite is 1.3.2 .
+This is an Adobe Swatch Exchange (`.ase`), Adobe Color (`.aco`) and Adobe Color Table (`.act`) import-export dialog for the [Aseprite](https://www.aseprite.org/) [scripting API](https://www.aseprite.org/docs/scripting/). Support for all formats is **partial**. The minimum supported version of Aseprite is 1.3.13 .
 
 ## File Extensions
 
