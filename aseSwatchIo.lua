@@ -1544,11 +1544,19 @@ dlg:button {
                         if palette then
                             local oldColorMode <const> = activeSprite.colorMode
                             if oldColorMode == ColorMode.INDEXED then
-                                app.command.ChangePixelFormat { format = "rgb" }
+                                app.command.ChangePixelFormat {
+                                    ui = false,
+                                    format = "rgb"
+                                }
                             end
                             activeSprite:setPalette(palette)
                             if oldColorMode == ColorMode.INDEXED then
-                                app.command.ChangePixelFormat { format = "indexed" }
+                                app.command.ChangePixelFormat {
+                                    ui = false,
+                                    format = "indexed",
+                                    fitCriteria = "cielab",
+                                    rgbmap = "octree"
+                                }
                                 -- Could set transparent color index... but
                                 -- you'd have to open the file as a sprite,
                                 -- then get the index and palette, then close
@@ -1617,7 +1625,10 @@ dlg:button {
 
         local oldColorMode <const> = activeSprite.colorMode
         if oldColorMode == ColorMode.INDEXED then
-            app.command.ChangePixelFormat { format = "rgb" }
+            app.command.ChangePixelFormat {
+                ui = false,
+                format = "rgb"
+            }
         end
 
         local activeFrame <const> = app.frame or activeSprite.frames[1]
@@ -1642,7 +1653,12 @@ dlg:button {
         end)
 
         if oldColorMode == ColorMode.INDEXED then
-            app.command.ChangePixelFormat { format = "indexed" }
+            app.command.ChangePixelFormat {
+                ui = false,
+                format = "indexed",
+                fitCriteria = "cielab",
+                rgbmap = "octree"
+            }
         end
     end
 }
