@@ -26,6 +26,9 @@
     CIE-sRGB, CIE-AdobeRGB formulae:
     https://www.easyrgb.com/en/math.php
 
+    For Bradford adapted, D65 to D50, matrices found in icc profiles, see:
+    http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+
     Display P3 conversions to and from CIE XYZ:
     https://www.w3.org/TR/css-color-4/#color-conversion-code
     https://fujiwaratko.sakura.ne.jp/infosci/colorspace/colorspace2_e.html
@@ -636,11 +639,8 @@ local function readAse(fileData, colorSpace, externalRef)
     local max <const> = math.max
     local min <const> = math.min
 
-    local isGimp = externalRef == "GIMP"
-    local isKrita = externalRef == "KRITA"
-    local lScalar = 100.0
-    if isGimp then lScalar = 1.0 end
-    if isKrita then lScalar = 100.0 end
+    local lScalar <const> = 100.0
+    local isGimp <const> = externalRef == "GIMP"
 
     local lenFileData <const> = #fileData
     local isAdobe <const> = colorSpace == "ADOBE_RGB"
@@ -1181,11 +1181,8 @@ local function writeAse(
     local isGryAdobeY <const> = isAdobe and isGryLuma
     local isGryP3Y <const> = isP3 and isGryLuma
 
-    local lScalar = 0.01
+    local lScalar <const> = 0.01
     local isGimp <const> = externalRef == "GIMP"
-    local isKrita <const> = externalRef == "KRITA"
-    if isGimp then lScalar = 1.0 end
-    if isKrita then lScalar = 0.01 end
 
     -- Block length and color space vary by user preference.
     local pkBlockLen = strpack(">i4", 34)

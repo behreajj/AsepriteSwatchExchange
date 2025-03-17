@@ -26,7 +26,7 @@ Rudimentary formulas for CMYK are included because they seemed better than throw
 
 `.ase` files support palettes in RGB, CMYK, CIE LAB and Grayscale formats. HSB is not supported; the exporter will default to RGB for this case. Color values are stored as 32-bit floating point real numbers. CMYK should not be taken seriously.
 
-`.ase` imports were tested initially with Krita. GIMP added support for `.ase` palettes as of version 2.10.36 on November 7, 2023. For the LAB format, Krita treats the lightness channel as being in the range [0.0, 1.0]; GIMP, in [0.0, 100.0]. For CMYK, GIMP expects RGB to be linear, not in gamma.
+`.ase` imports were tested initially with Krita. GIMP added support for `.ase` palettes as of version 2.10.36 on November 7, 2023. LAB formatted files between Krita and GIMP were consistent as of version 3.0.0 on March 16, 2025 with the release of GIMP version 3.0.0. For CMYK, GIMP expects RGB to be linear, not in gamma.
 
 Swatches include names. This script writes the 6-digit hexadecimal code as name; it does not read the name on import.
 
